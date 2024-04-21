@@ -443,10 +443,10 @@ def main(args):
         completed_epoch = epoch + 1
         
         if args.elr_distill:
-            update_swa_model(model, dist_model, args, completed_epoch)
+            update_swa_model(model, dist_model, data, args, completed_epoch)
         
         if any(v in data for v in ('val', 'imagenet-val', 'imagenet-v2')):
-            evaluate(model, data, completed_epoch, args, tb_writer=writer, tokenizer=tokenizer)
+            evaluate(original_model, data, completed_epoch, args, tb_writer=writer, tokenizer=tokenizer)
 
         # Saving checkpoints.
         if args.save_logs:

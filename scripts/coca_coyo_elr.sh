@@ -6,14 +6,14 @@ torchrun --nproc_per_node 4 --master_port 8888 -m training.main \
          --val-data="/home/sandeepmukh/imagen-pytorch/data/coyo-700m-webdataset/{00340..00345}.tar" \
          --val-num-samples 10000 \
          --dataset-type webdataset \
-         --batch-size 100 \
+         --batch-size 128 \
          --warmup 2000 \
          --epochs 100 \
          --lr 5e-4 \
          --precision amp \
-         --workers 3 \
+         --workers 4 \
          --model "coca_ViT-B-32" \
-         --name "coca_coyo_elr_0" \
+         --name "coca_coyo_elr_2" \
          --report-to "wandb" \
          --wandb-project-name "open-clip-elr" \
          --imagenet-val "/home/sandeepmukh/open_clip/imagenet/validation" \
@@ -21,4 +21,4 @@ torchrun --nproc_per_node 4 --master_port 8888 -m training.main \
          --local-loss \
          --save-frequency 5 \
          --elr-distill \
-        #  --torchcompile \
+         --torchcompile \

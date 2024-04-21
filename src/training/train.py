@@ -7,7 +7,6 @@ import time
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.nn.parallel.distributed import DistributedDataParallel
 from sklearn.mixture import GaussianMixture
 
 try:
@@ -68,12 +67,34 @@ def fit_gmm(model, data, loss, tb_writer=None):
     pass
 
 def update_swa_model(model, dist_model, data, args, epoch, swa_scheduler=None):
+    device = torch.device(args.device)
+    autocast = get_autocast(args.precision)
+    input_dtype = get_input_dtype(args.precision)
     if not is_master(args):
         return
     
+    logging.info("Updating SWA model")
     dist_model.update_parameters(model)
     if swa_scheduler is not None:
         swa_scheduler.step()
+        
+    logging.info("Updating SWA bn statistics")
+    # update BN statistics
+    dist_model.train()
+    with torch.no_grad():
+        for i, (img, text) in enumerate(data['train'].dataloader):
+            img = img.to(device=device, non_blocking=True, dtype=input_dtype)
+            text = text.to(device=device, non_blocking=True)
+            with autocast():
+                dist_model(img, text)     
+            
+            if i > args.max_elr_bn_batches:
+                break
+                       
+    dist_model.eval()
+    logging.info("SWA model updated")
+        
+    
     
     
     

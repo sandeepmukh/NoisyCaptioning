@@ -419,6 +419,12 @@ def parse_args(args):
         help="Exponential moving average decay for ELR loss teacher."
     )
     parser.add_argument(
+        "--max-elr-bn-batches",
+        type=int,
+        default=100,
+        help="Number of batches to use for ELR swa teacher batch norm stats."
+    )
+    parser.add_argument(
         "--remote-sync",
         type=str,
         default=None,
