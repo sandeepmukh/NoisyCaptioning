@@ -407,6 +407,18 @@ def parse_args(args):
         help="Weight assigned to contrastive loss when training CoCa."
     )
     parser.add_argument(
+        "--elr-weight",
+        type=float,
+        default=3.0,
+        help="Weight assigned to ELR loss when using elr-distill."
+    )
+    parser.add_argument(
+        "--elr-ema-decay",
+        type=float,
+        default=0.9,
+        help="Exponential moving average decay for ELR loss teacher."
+    )
+    parser.add_argument(
         "--remote-sync",
         type=str,
         default=None,
@@ -439,6 +451,12 @@ def parse_args(args):
         "--distill-pretrained",
         default=None,
         help='Which pre-trained weights to distill from, if any.'
+    )
+    parser.add_argument(
+        "--elr-distill",
+        default=False,
+        action="store_true",
+        help="Noise robust learning with temporal ensembling and the ELR loss."
     )
     parser.add_argument(
         "--use-bnb-linear",

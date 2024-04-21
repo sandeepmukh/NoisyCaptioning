@@ -67,13 +67,23 @@ def train_one_epoch_semisupervised(model1, model2, data, loss, epoch, optimizer,
 def fit_gmm(model, data, loss, tb_writer=None):
     pass
 
+def update_swa_model(model, dist_model, data, args, epoch, swa_scheduler=None):
+    if not is_master(args):
+        return
+    
+    dist_model.update_parameters(model)
+    if swa_scheduler is not None:
+        swa_scheduler.step()
+    
+    
+    
 def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist_model, args, tb_writer=None):
     device = torch.device(args.device)
     autocast = get_autocast(args.precision)
     input_dtype = get_input_dtype(args.precision)
 
     model.train()
-    if args.distill:
+    if args.distill or args.elr_distill:
         dist_model.eval()
 
     data['train'].set_epoch(epoch)  # set epoch in process safe manner via sampler or shared_epoch
@@ -106,10 +116,11 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
             with autocast():
                 model_out = model(images, texts)
                 logit_scale = model_out["logit_scale"]
-                if args.distill:
+                if args.distill or args.elr_distill:
                     with torch.no_grad():
                         dist_model_out = dist_model(images, texts)
                     model_out.update({f'dist_{k}': v for k, v in dist_model_out.items()})
+
                 losses = loss(**model_out, output_dict=True)
 
                 total_loss = sum(losses.values())

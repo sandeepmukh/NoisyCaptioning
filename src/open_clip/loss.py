@@ -209,7 +209,7 @@ class CoCaLoss(ClipLoss):
         return clip_loss, caption_loss
 
 
-class DistCoCaLoss(CoCaLoss):
+class DistillCoCaLoss(CoCaLoss):
 
     def __init__(
         self,
@@ -251,13 +251,17 @@ class DistCoCaLoss(CoCaLoss):
         labels,
         logit_scale,
         dist_logits,
+        dist_image_features=None,
+        dist_text_features=None,
+        dist_logit_scale=None,
+        dist_labels=None,
         output_dict=False,
     ):
 
         clip_loss = torch.tensor(0)
 
         if self.clip_loss_weight:
-            clip_loss = super().forward(image_features, text_features, logit_scale)
+            clip_loss = super(CoCaLoss, self).forward(image_features, text_features, logit_scale)
             clip_loss = self.clip_loss_weight * clip_loss
 
         caption_loss = self.caption_loss(

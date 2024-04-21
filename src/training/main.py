@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from torch import optim
 from torch.cuda.amp import GradScaler
+from torch.optim.swa_utils import get_ema_multi_avg_fn, AveragedModel
 
 try:
     import wandb
@@ -34,7 +35,7 @@ from training.distributed import is_master, init_distributed_device, broadcast_o
 from training.logger import setup_logging
 from training.params import parse_args
 from training.scheduler import cosine_lr, const_lr, const_lr_cooldown
-from training.train import train_one_epoch, evaluate
+from training.train import train_one_epoch, evaluate, update_swa_model
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 
@@ -239,6 +240,7 @@ def main(args):
         output_dict=True,
         **model_kwargs,
     )
+
     if args.distill:
         # FIXME: currently assumes the model you're distilling from has the same tokenizer & transforms.
         dist_model, _, _ = create_model_and_transforms(
@@ -248,6 +250,7 @@ def main(args):
             precision=args.precision,
             output_dict=True,
         )
+        
     if args.use_bnb_linear is not None:
         print('=> using a layer from bitsandbytes.\n'
               '   this is an experimental feature which requires two extra pip installs\n'
@@ -300,7 +303,10 @@ def main(args):
     
         if args.distill:
             dist_model = torch.nn.parallel.DistributedDataParallel(dist_model, device_ids=[device], **ddp_args)
-
+            
+    if args.elr_distill:
+        dist_model = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(args.elr_ema_decay))
+            
     # create optimizer and scaler
     optimizer = None
     scaler = None
@@ -435,7 +441,10 @@ def main(args):
 
         train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist_model, args, tb_writer=writer)
         completed_epoch = epoch + 1
-
+        
+        if args.elr_distill:
+            update_swa_model(model, dist_model, args, completed_epoch)
+        
         if any(v in data for v in ('val', 'imagenet-val', 'imagenet-v2')):
             evaluate(model, data, completed_epoch, args, tb_writer=writer, tokenizer=tokenizer)
 
