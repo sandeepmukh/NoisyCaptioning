@@ -66,37 +66,29 @@ def train_one_epoch_semisupervised(model1, model2, data, loss, epoch, optimizer,
 def fit_gmm(model, data, loss, tb_writer=None):
     pass
 
-def update_swa_model(model, dist_model, data, args, epoch, swa_scheduler=None):
+def update_swa_model(model, dist_model, batch, args, epoch, swa_scheduler=None):
     device = torch.device(args.device)
     autocast = get_autocast(args.precision)
     input_dtype = get_input_dtype(args.precision)
-    if not is_master(args):
-        return
+    
+    # if not is_master(args):
+    #     return
     
     logging.info("Updating SWA model")
     dist_model.update_parameters(model)
     if swa_scheduler is not None:
         swa_scheduler.step()
         
-    logging.info("Updating SWA bn statistics")
+    # logging.info("Updating SWA bn statistics")
     # update BN statistics
-    dist_model.train()
-    with torch.no_grad():
-        for i, (img, text) in enumerate(data['train'].dataloader):
-            img = img.to(device=device, non_blocking=True, dtype=input_dtype)
-            text = text.to(device=device, non_blocking=True)
-            with autocast():
-                dist_model(img, text)     
-            
-            if i > args.max_elr_bn_batches:
-                break
-                       
-    dist_model.eval()
+    # dist_model.train()
+    img, text = batch
+    img = img.to(device=device, non_blocking=True, dtype=input_dtype)
+    text = text.to(device=device, non_blocking=True)
+    with autocast():
+        dist_model(img, text)     
+    # dist_model.eval()
     logging.info("SWA model updated")
-        
-    
-    
-    
     
 def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist_model, args, tb_writer=None):
     device = torch.device(args.device)
@@ -104,8 +96,11 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
     input_dtype = get_input_dtype(args.precision)
 
     model.train()
-    if args.distill or args.elr_distill:
+    if args.distill:
         dist_model.eval()
+        
+    if args.elr_distill:
+        dist_model.train()
 
     data['train'].set_epoch(epoch)  # set epoch in process safe manner via sampler or shared_epoch
     dataloader = data['train'].dataloader
@@ -137,7 +132,7 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
             with autocast():
                 model_out = model(images, texts)
                 logit_scale = model_out["logit_scale"]
-                if args.distill or args.elr_distill:
+                if args.distill or (args.elr_distill and epoch > args.elr_teacher_warmup):
                     with torch.no_grad():
                         dist_model_out = dist_model(images, texts)
                     model_out.update({f'dist_{k}': v for k, v in dist_model_out.items()})
@@ -229,6 +224,7 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
         batch_time_m.update(time.time() - end)
         end = time.time()
         batch_count = i_accum + 1
+        
         if is_master(args) and (i_accum % args.log_every_n_steps == 0 or batch_count == num_batches_per_epoch):
             batch_size = len(images)
             num_samples = batch_count * batch_size * args.accum_freq * args.world_size
@@ -279,10 +275,14 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
                 assert wandb is not None, 'Please install wandb.'
                 log_data['step'] = step  # for backwards compatibility
                 wandb.log(log_data, step=step)
+    
             
             # resetting batch / data time meters per log window
             batch_time_m.reset()
             data_time_m.reset()
+        
+        if args.elr_distill and (i_accum % args.log_every_n_steps == 0 or batch_count == num_batches_per_epoch):
+            update_swa_model(model, dist_model, batch, args, epoch)
     # end for
 
 

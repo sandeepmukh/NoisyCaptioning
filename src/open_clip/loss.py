@@ -238,10 +238,14 @@ class DistillCoCaLoss(CoCaLoss):
         self.elr_weight = elr_weight
 
     def elr_reg(self, teacher_logits, student_logits):
-        teacher_pred = teacher_logits.softmax(dim=2).clamp(1e-4, 1.0 - 1e-4)
-        student_pred = student_logits.softmax(dim=2).clamp(1e-4, 1.0 - 1e-4)
+        teacher_pred = teacher_logits.softmax(dim=-1).clamp(1e-4, 1.0 - 1e-4)
+        student_pred = student_logits.softmax(dim=-1).clamp(1e-4, 1.0 - 1e-4)
         
-        return (1 - (teacher_pred * student_pred).sum(2)).log().mean()
+        assert not torch.isnan(teacher_pred).any(), 'teacher_pred has NaNs'
+        assert not torch.isnan(student_pred).any(), 'student_pred has NaNs'
+        
+        loss = (1 - (teacher_pred * student_pred).sum(-1).clamp(0, 1.0-1e-2)).log().mean()
+        return loss
 
     def forward(
         self,
@@ -250,7 +254,7 @@ class DistillCoCaLoss(CoCaLoss):
         logits,
         labels,
         logit_scale,
-        dist_logits,
+        dist_logits=None,
         dist_image_features=None,
         dist_text_features=None,
         dist_logit_scale=None,
@@ -270,7 +274,10 @@ class DistillCoCaLoss(CoCaLoss):
         )
         caption_loss = caption_loss * self.caption_loss_weight
 
-        distill_loss = self.elr_reg(dist_logits, logits) * self.elr_weight
+        if dist_logits is not None:
+            distill_loss = self.elr_reg(dist_logits, logits) * self.elr_weight
+        else:
+            distill_loss = torch.zeros_like(clip_loss)
 
         if output_dict:
             return {
