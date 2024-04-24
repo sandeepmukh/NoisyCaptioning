@@ -13,6 +13,7 @@ import torch
 from torch import optim
 from torch.cuda.amp import GradScaler
 from torch.optim.swa_utils import get_ema_multi_avg_fn, AveragedModel
+import torchvision.transforms as transforms
 
 try:
     import wandb
@@ -40,8 +41,10 @@ from training.distributed import is_master, init_distributed_device, broadcast_o
 from training.logger import setup_logging
 from training.params import parse_args
 from training.scheduler import cosine_lr, const_lr, const_lr_cooldown
-from training.train import train_one_epoch, evaluate, update_swa_model
+from training.train import train_one_epoch, evaluate, update_swa_model, train_and_split_clean_noisy, train_one_epoch_dividemix
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
+
+from data import get_list_dataset
 
 
 LATEST_CHECKPOINT_NAME = "epoch_latest.pt"
@@ -83,6 +86,7 @@ def get_latest_checkpoint(path: str, remote: bool):
 
 def main(args):
     args = parse_args(args)
+    assert args.warmup_epochs < args.epochs, f"Number of warmup epochs {args.warmup_epochs} must be less than number of total epochs {args.epochs}"
 
     if torch.cuda.is_available():
         # This enables tf32 on Ampere GPUs which is only 8% slower than
@@ -268,6 +272,26 @@ def main(args):
         output_dict=True,
         **model_kwargs,
     )
+    if args.dividemix:  # need another model
+        model2, _, _ = create_model_and_transforms(
+            args.model,
+            args.pretrained,
+            precision=args.precision,
+            device=device,
+            jit=args.torchscript,
+            force_quick_gelu=args.force_quick_gelu,
+            force_custom_text=args.force_custom_text,
+            force_patch_dropout=args.force_patch_dropout,
+            force_image_size=args.force_image_size,
+            image_mean=args.image_mean,
+            image_std=args.image_std,
+            image_interpolation=args.image_interpolation,
+            image_resize_mode=args.image_resize_mode,  # only effective for inference
+            aug_cfg=args.aug_cfg,
+            pretrained_image=args.pretrained_image,
+            output_dict=True,
+            **model_kwargs,
+        )
 
     if args.distill:
         # FIXME: currently assumes the model you're distilling from has the same tokenizer & transforms.
@@ -381,6 +405,11 @@ def main(args):
             betas=(args.beta1, args.beta2),
             eps=args.eps,
         )
+        if args.dividemix:
+            optimizer2 = optim.AdamW([
+                {"params": gain_or_bias_params, "weight_decay": 0.0},
+                {"params": rest_params, "weight_decay": args.wd}
+            ], lr=args.lr, betas=(args.beta, args.beta2), eps=args.eps)
         if args.horovod:
             optimizer = hvd.DistributedOptimizer(
                 optimizer, named_parameters=model.named_parameters()
@@ -502,23 +531,30 @@ def main(args):
         return
 
     loss = create_loss(args)
+    augmentations = [
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip()
+    ]
 
     for epoch in range(start_epoch, args.epochs):
         if is_master(args):
             logging.info(f"Start epoch {epoch}")
 
-        train_one_epoch(
-            model,
-            data,
-            loss,
-            epoch,
-            optimizer,
-            scaler,
-            scheduler,
-            dist_model ,
-            args,
-            tb_writer=writer,
-        )
+        if args.dividemix and epoch >= args.warmup_epochs:  # actually start meat of the dividemix algorithm
+            clean1, noisy1 = train_and_split_clean_noisy(model, data, loss, epoch, optimizer, scaler, scheduler, args, tb_writer=writer)
+            clean1, noisy1 = get_list_dataset(args, clean1), get_list_dataset(args, noisy1)
+            clean2, noisy2 = train_and_split_clean_noisy(model2, data, loss, epoch, optimizer2, scaler, scheduler, args, tb_writer=writer)
+            clean2, noisy2 = get_list_dataset(args, clean2), get_list_dataset(args, noisy2)
+
+            model.train()
+            model2.eval()
+            train_one_epoch_dividemix(model, model2, clean2, noisy2, loss, epoch, optimizer, scaler, scheduler, augmentations, args, tb_writer=None)
+
+            model2.train()
+            model.eval()
+            train_one_epoch_dividemix(model2, model, clean1, noisy1, loss, epoch, optimizer2, scaler, scheduler, augmentations, args, tb_writer=None)
+        else:
+            train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist_model, args, tb_writer=writer)
         completed_epoch = epoch + 1
 
         if any(v in data for v in ("val", "imagenet-val", "imagenet-v2")):

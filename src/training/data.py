@@ -562,3 +562,39 @@ def get_data(args, preprocess_fns, epoch=0, tokenizer=None):
         data["imagenet-v2"] = get_imagenet(args, preprocess_fns, "v2")
 
     return data
+
+
+class ListDataset(Dataset):
+    def __init__(self, images_and_texts):
+        self.images = []
+        self.captions = []
+        for datapoint in images_and_texts:
+            self.images.append(datapoint[0])
+            self.captions.append(datapoint[0])
+
+    def __len__(self):
+        return len(self.captions)
+
+    def __getitem__(self, idx):
+        return self.images[idx], self.texts[idx]
+
+
+def get_list_dataset(args, images_and_texts):
+    dataset = ListDataset(images_and_texts)
+    num_samples = len(dataset)
+    sampler = DistributedSampler(dataset) if args.distributed and is_train else None
+    shuffle = is_train and sampler is None
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=shuffle,
+        num_workers=args.workers,
+        pin_memory=True,
+        sampler=sampler,
+        drop_last=is_train,
+    )
+    dataloader.num_samples = num_samples
+    dataloader.num_batches = len(dataloader) // args.batch_size + 1
+
+    return DataInfo(dataloader, sampler)

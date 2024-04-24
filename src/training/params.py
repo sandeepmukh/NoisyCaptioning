@@ -129,6 +129,9 @@ def parse_args(args):
         "--epochs", type=int, default=32, help="Number of epochs to train for."
     )
     parser.add_argument(
+        "--warmup-epochs", type=int, default=0, help="Number of epochs out of total number of epochs to do warmup training"
+    )
+    parser.add_argument(
         "--epochs-cooldown", type=int, default=None,
         help="When scheduler w/ cooldown used, perform cooldown from total_epochs - cooldown_epochs onwards."
     )
@@ -393,6 +396,24 @@ def parse_args(args):
         type=int,
         default=100,
         help="Log every n steps to tensorboard/console/wandb.",
+    )
+    parser.add_argument(
+        "--dividemix",
+        default=False,
+        action="store_true",
+        help="Whether or not to implement a version of the DivideMix algorithm"
+    )
+    parser.add_argument(
+        "--clean-threshold",
+        type=float,
+        default=0.5,
+        help="Clean probability threshold for splitting up the inputs"
+    )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=4,
+        help="Alpha for MixMatch"
     )
     parser.add_argument(
         "--coca-caption-loss-weight",

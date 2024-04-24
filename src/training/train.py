@@ -18,6 +18,7 @@ from open_clip import get_input_dtype, CLIP, CustomTextCLIP
 from .distributed import is_master
 from .zero_shot import zero_shot_eval
 from .precision import get_autocast
+from .sequence_mixing import seqmix
 
 
 class AverageMeter(object):
@@ -63,8 +64,12 @@ def backward(total_loss, scaler):
 def train_one_epoch_semisupervised(model1, model2, data, loss, epoch, optimizer, scaler, scheduler, args, tb_writer=None):
     pass
 
-def fit_gmm(model, data, loss, tb_writer=None):
-    pass
+def fit_gmm(loss, n_components=2, max_iter=10, tol=1e-2, reg_covar=5e-4):
+    gmm = GaussianMixture(n_components=n_components, max_iter=max_iter, tol=tol, reg_covar=reg_covar)
+    gmm.fit(loss)
+    probs = gmm.predict_proba(loss)
+    probs = probs[:, gmm.means_.argmin()]
+    return probs
 
 def update_swa_model(model, dist_model, batch, args, epoch, swa_scheduler=None):
     device = torch.device(args.device)
@@ -283,6 +288,281 @@ def train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist
         
         if args.elr_distill and (i_accum % args.log_every_n_steps == 0 or batch_count == num_batches_per_epoch):
             update_swa_model(model, dist_model, batch, args, epoch)
+    # end for
+
+
+def train_and_split_clean_noisy(model, data, loss, epoch, optimizer, scaler, scheduler, args, tb_writer=None):
+    device = torch.device(args.device)
+    autocast = get_autocast(args.precision)
+    input_dtype = get_input_dtype(args.precision)
+
+    model.train()
+
+    data['train'].set_epoch(epoch)  # set epoch in process safe manner via sampler or shared_epoch
+    dataloader = data['train'].dataloader
+    num_batches_per_epoch = dataloader.num_batches // args.accum_freq
+    sample_digits = math.ceil(math.log(dataloader.num_samples + 1, 10))
+
+    if args.accum_freq > 1:
+        accum_images, accum_texts, accum_features = [], [], {}
+
+    losses_m = {}
+    batch_time_m = AverageMeter()
+    data_time_m = AverageMeter()
+    end = time.time()
+    clean_set = []
+    noisy_set = []
+    for i, batch in enumerate(dataloader):
+        i_accum = i // args.accum_freq
+        step = num_batches_per_epoch * epoch + i_accum
+
+        if not args.skip_scheduler:
+            scheduler(step)
+
+        images, texts = batch
+        images = images.to(device=device, dtype=input_dtype, non_blocking=True)
+        texts = texts.to(device=device, non_blocking=True)
+
+        data_time_m.update(time.time() - end)
+        optimizer.zero_grad()
+
+        if args.accum_freq == 1:
+            with autocast():
+                model_out = model(images, texts)
+                logit_scale = model_out["logit_scale"]
+                losses = loss(**model_out, output_dict=True)
+                total_loss = sum(losses.values())
+                losses["loss"] = total_loss
+
+            probs = fit_gmm(losses)
+        else:
+            # First, cache the features without any gradient tracking.
+            with torch.no_grad():
+                with autocast():
+                    model_out = model(images, texts)
+
+                    for f in ("logit_scale", "logit_bias"):
+                        model_out.pop(f, None)
+
+                    for key, val in model_out.items():
+                        if key in accum_features:
+                            accum_features[key].append(val)
+                        else:
+                            accum_features[key] = [val]
+
+                accum_images.append(images)
+                accum_texts.append(texts)
+
+            # If (i + 1) % accum_freq is not zero, move on to the next batch.
+            if ((i + 1) % args.accum_freq) > 0:
+                # FIXME this makes data time logging unreliable when accumulating
+                continue
+
+            # Now, ready to take gradients for the last accum_freq batches.
+            # Re-do the forward pass for those batches, and use the cached features from the other batches as negatives.
+            # Call backwards each time, but only step optimizer at the end.
+            optimizer.zero_grad()
+            for j in range(args.accum_freq):
+                images = accum_images[j]
+                texts = accum_texts[j]
+                with autocast():
+                    model_out = model(images, texts)
+
+                    inputs_no_accum = {}
+                    inputs_no_accum["logit_scale"] = logit_scale = model_out.pop("logit_scale")
+                    if "logit_bias" in model_out:
+                        inputs_no_accum["logit_bias"] = model_out.pop("logit_bias")
+
+                    inputs = {}
+                    for key, val in accum_features.items():
+                        accumulated = accum_features[key]
+                        inputs[key] = torch.cat(accumulated[:j] + [model_out[key]] + accumulated[j + 1:])
+
+                    losses = loss(**inputs, **inputs_no_accum, output_dict=True)
+                    del inputs
+                    del inputs_no_accum
+                    total_loss = sum(losses.values())
+                    losses["loss"] = total_loss
+
+                probs = fit_gmm(losses)
+
+        # Use clean-label probabilities to split up data
+        mask = probs >= args.clean_threshold
+        clean_set.extend(list(zip(images[mask], texts[mask])))
+        noisy_set.extend(list(zip(images[~mask], texts[~mask])))
+    
+    return clean_set, noisy_set
+
+
+def train_one_epoch_dividemix(model, model2, clean_data, noisy_data, loss, epoch, optimizer, scaler, scheduler, augmentations, args, tb_writer=None):
+    device = torch.device(args.device)
+    autocast = get_autocast(args.precision)
+    input_dtype = get_input_dtype(args.precision)
+
+    clean_data.set_epoch(epoch)  # set epoch in process safe manner via sampler or shared_epoch
+    clean_dataloader = clean_data.dataloader
+    noisy_data.set_epoch(epoch)
+    noisy_dataloader = noisy_data.dataloader
+
+    num_batches_per_epoch = clean_dataloader.num_batches // args.accum_freq
+    sample_digits = math.ceil(math.log(clean_dataloader.num_samples + 1, 10))
+
+    if args.accum_freq > 1:
+        accum_images, accum_texts, accum_features = [], [], {}
+
+    losses_m = {}
+    batch_time_m = AverageMeter()
+    data_time_m = AverageMeter()
+    end = time.time()
+    noisy_iter = iter(noisy_dataloader)
+    for i, batch in enumerate(clean_dataloader):
+        i_accum = i // args.accum_freq
+        step = num_batches_per_epoch * epoch + i_accum
+
+        try:
+            noisy_images, noisy_texts = noisy_iter.next()
+        except:
+            noisy_iter = iter(noisy_dataloader)
+            noisy_images, noisy_texts = noisy_iter.next()
+
+        if not args.skip_scheduler:
+            scheduler(step)
+
+        images, texts = batch
+        images = images.to(device=device, dtype=input_dtype, non_blocking=True)
+        augmented_images = torch.cat([aug(images) for aug in augmentations], dim=0)
+        augmented_noisy_images = torch.cat([aug(noisy_images) for aug in augmentations], dim=0)
+        texts = texts.to(device=device, non_blocking=True)
+        repeated_texts = texts.repeat(len(augmentations))
+        repeated_noisy_texts = noisy_texts.repeat(len(augmentations))
+
+        data_time_m.update(time.time() - end)
+        optimizer.zero_grad()
+
+        if args.accum_freq == 1:
+            with autocast():
+                # "Co-divide"
+                model_out = model(augmented_images, repeated_texts)
+                outputs_by_image = model_out.view(-1, len(augmentations), *model_out.shape[1:])
+                average_labels = torch.stack([seqmix(outputs_by_image[j]) for j in range(outputs_by_image.shape[0])])
+                new_texts = torch.stack([seqmix(texts[j], average_labels[j]) for j in range(average_labels.shape[0])])
+                
+                logit_scale = model_out["logit_scale"]
+                losses = loss(**model_out, output_dict=True)
+                total_loss = sum(losses.values())
+                losses["loss"] = total_loss
+
+                # Co-guessing
+                noisy_out1 = model(augmented_noisy_images, repeated_noisy_texts)
+                noisy_out2 = model2(augmented_noisy_images, repeated_noisy_texts)
+                combined_noisy_outputs = torch.cat([noisy_out1, noisy_out2], dim=0)
+                outputs_by_image = combined_noisy_outputs.view(-1, 2 * len(augmentations), *combined_noisy_outputs.shape[1:])
+                new_noisy_texts = torch.stack([seqmix(outputs_by_image[j]) for j in range(outputs_by_image.shape[0])])
+
+        # MixMatch
+        l = np.random.beta(args.alpha, args.alpha)
+        l = max(l, 1 - l)
+        all_images = torch.cat([augmented_images, augmented_noisy_images], dim=0)
+        all_captions = torch.cat([new_texts, new_texts, new_noisy_texts, new_noisy_texts], dim=0)
+
+        idx = torch.randperm(all_images.size(0))
+
+        image_a, image_b = all_images, all_images[idx]
+        caption_a, caption_b = all_captions, all_captions[idx]
+        
+        mixed_image = l * image_a + (1 - l) * image_b        
+        mixed_caption = seqmix(caption_a, caption_b, weights = [l, 1 - l])
+                
+        mixmatch_output = model(mixed_image, mixed_caption)
+           
+        # TODO: use mixmatch losses + losses from before to update network
+
+        if scaler is not None:
+            if args.horovod:
+                optimizer.synchronize()
+                scaler.unscale_(optimizer)
+                if args.grad_clip_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm, norm_type=2.0)
+                with optimizer.skip_synchronize():
+                    scaler.step(optimizer)
+            else:
+                if args.grad_clip_norm is not None:
+                    scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm, norm_type=2.0)
+                scaler.step(optimizer)
+            scaler.update()
+        else:
+            if args.grad_clip_norm is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip_norm, norm_type=2.0)
+            optimizer.step()
+
+        # reset gradient accum, if enabled
+        if args.accum_freq > 1:
+            accum_images, accum_texts, accum_features = [], [], {}
+
+        # Note: we clamp to 4.6052 = ln(100), as in the original paper.
+        with torch.no_grad():
+            unwrap_model(model).logit_scale.clamp_(0, math.log(100))
+
+        batch_time_m.update(time.time() - end)
+        end = time.time()
+        batch_count = i_accum + 1
+        
+        if is_master(args) and (i_accum % args.log_every_n_steps == 0 or batch_count == num_batches_per_epoch):
+            batch_size = len(images)
+            num_samples = batch_count * batch_size * args.accum_freq * args.world_size
+            samples_per_epoch = clean_dataloader.num_samples
+            percent_complete = 100.0 * batch_count / num_batches_per_epoch
+
+            # NOTE loss is coarsely sampled, just master node and per log update
+            for key, val in losses.items():
+                if key not in losses_m:
+                    losses_m[key] = AverageMeter()
+                losses_m[key].update(val.item(), batch_size)
+
+            logit_scale_scalar = logit_scale.item()
+            loss_log = " ".join(
+                [
+                    f"{loss_name.capitalize()}: {loss_m.val:#.5g} ({loss_m.avg:#.5g})" 
+                    for loss_name, loss_m in losses_m.items()
+                ]
+            )
+            samples_per_second = args.accum_freq * args.batch_size * args.world_size / batch_time_m.val
+            samples_per_second_per_gpu = args.accum_freq * args.batch_size / batch_time_m.val
+            logging.info(
+                f"Train Epoch: {epoch} [{num_samples:>{sample_digits}}/{samples_per_epoch} ({percent_complete:.0f}%)] "
+                f"Data (t): {data_time_m.avg:.3f} "
+                f"Batch (t): {batch_time_m.avg:.3f}, {samples_per_second:#g}/s, {samples_per_second_per_gpu:#g}/s/gpu "
+                f"LR: {optimizer.param_groups[0]['lr']:5f} "
+                f"Logit Scale: {logit_scale_scalar:.3f} " + loss_log
+            )
+
+            # Save train loss / etc. Using non avg meter values as loggers have their own smoothing
+            log_data = {
+                "data_time": data_time_m.val,
+                "batch_time": batch_time_m.val,
+                "samples_per_second": samples_per_second,
+                "samples_per_second_per_gpu": samples_per_second_per_gpu,
+                "scale": logit_scale_scalar,
+                "lr": optimizer.param_groups[0]["lr"]
+            }            
+            log_data.update({name:val.val for name,val in losses_m.items()})
+
+            log_data = {"train/" + name: val for name, val in log_data.items()}
+
+            if tb_writer is not None:
+                for name, val in log_data.items():
+                    tb_writer.add_scalar(name, val, step)
+            
+            if args.wandb:
+                assert wandb is not None, 'Please install wandb.'
+                log_data['step'] = step  # for backwards compatibility
+                wandb.log(log_data, step=step)
+    
+            
+            # resetting batch / data time meters per log window
+            batch_time_m.reset()
+            data_time_m.reset()
     # end for
 
 
