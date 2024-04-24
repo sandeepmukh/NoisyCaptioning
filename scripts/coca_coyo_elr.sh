@@ -14,7 +14,7 @@ torchrun --nproc_per_node 4 --master_port 8888 -m training.main \
          --precision amp \
          --workers 4 \
          --model "coca_ViT-B-32" \
-         --name "coca_coyo_elr_10" \
+         --name "coca_coyo_elr_11" \
          --report-to "wandb" \
          --wandb-project-name "open-clip-elr" \
          --gather-with-grad \
@@ -22,3 +22,5 @@ torchrun --nproc_per_node 4 --master_port 8888 -m training.main \
          --save-frequency 5 \
          --elr-distill \
          --torchcompile \
+         --elr-weight 1 \
+        #  --resume latest \

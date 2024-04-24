@@ -405,6 +405,8 @@ def main(args):
                 optimizer.load_state_dict(checkpoint["optimizer"])
             if scaler is not None and "scaler" in checkpoint:
                 scaler.load_state_dict(checkpoint["scaler"])
+            if args.elr_distill:
+                dist_model.module.module.load_state_dict(checkpoint["distill_state_dict"])
             logging.info(
                 f"=> resuming checkpoint '{args.resume}' (epoch {start_epoch})"
             )
@@ -542,7 +544,7 @@ def main(args):
             if args.elr_distill:
                 # check if ddp
                 if args.distributed:
-                    checkpoint_dict["distill_state_dict"] = dist_model.module.module.state_dict()
+                    checkpoint_dict["distill_state_dict"] = dist_model.state_dict()
                 else: 
                     checkpoint_dict["distill_state_dict"] = dist_model.module.state_dict()
             if scaler is not None:

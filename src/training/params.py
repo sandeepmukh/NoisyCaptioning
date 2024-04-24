@@ -409,7 +409,7 @@ def parse_args(args):
     parser.add_argument(
         "--elr-weight",
         type=float,
-        default=3.0,
+        default=.3,
         help="Weight assigned to ELR loss when using elr-distill."
     )
     parser.add_argument(
