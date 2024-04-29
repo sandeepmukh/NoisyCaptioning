@@ -16,7 +16,7 @@ torchrun --nproc_per_node 4 --master_port 8888 -m training.main \
          --name "coca_coyo_baseline_4" \
          --report-to "wandb" \
          --wandb-project-name "open-clip-baseline" \
-         --imagenet-val "/home/sandeepmukh/open_clip/imagenet/validation" \
+         --imagenet-val "/home/sandeepmukh/open_clip/data/imagenet/validation" \
          --gather-with-grad \
          --local-loss \
          --save-frequency 5 \

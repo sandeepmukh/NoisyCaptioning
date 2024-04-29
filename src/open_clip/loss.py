@@ -287,6 +287,82 @@ class DistillCoCaLoss(CoCaLoss):
             }
 
         return clip_loss, caption_loss, distill_loss
+    
+class DistillCoCaLossV2(DistillCoCaLoss):
+    
+    def __init__(
+        self,
+        caption_loss_weight,
+        clip_loss_weight,
+        elr_weight,
+        pad_id=0,
+        local_loss=False,
+        gather_with_grad=False,
+        cache_labels=False,
+        rank=0,
+        world_size=1,
+        use_horovod=False,
+        tau=0.7,
+    ):
+        super().__init__(
+            caption_loss_weight,
+            clip_loss_weight,
+            elr_weight,
+            pad_id=pad_id,
+            local_loss=local_loss,
+            gather_with_grad=gather_with_grad,
+            cache_labels=cache_labels,
+            rank=rank,
+            world_size=world_size,
+            use_horovod=use_horovod,
+        )
+        self.caption_loss_no_reduce = nn.CrossEntropyLoss(ignore_index=pad_id, reduction='none')
+        self.tau = tau
+        
+    
+    def forward(
+        self,
+        image_features,
+        text_features,
+        logits,
+        labels,
+        logit_scale,
+        dist_logits=None,
+        dist_image_features=None,
+        dist_text_features=None,
+        dist_logit_scale=None,
+        dist_labels=None,
+        dist_gmm=None,
+        output_dict=False,
+    ):
+
+        clip_loss = torch.tensor(0)
+
+        if self.clip_loss_weight:
+            clip_loss = super(CoCaLoss, self).forward(image_features, text_features, logit_scale)
+            clip_loss = self.clip_loss_weight * clip_loss
+            
+        if dist_logits is not None:
+            with torch.no_grad():
+                distill_loss = self.caption_loss_no_reduce(dist_logits.permute(0, 2, 1), dist_labels)
+                thresh = distill_loss.quantile(self.tau)
+                mask = (distill_loss < thresh).float() / (self.tau + 1e-6)
+        else:
+            mask = torch.ones_like(labels)
+
+        caption_loss = (self.caption_loss_no_reduce(
+            logits.permute(0, 2, 1),
+            labels,
+        )*mask).mean()
+        caption_loss = caption_loss * self.caption_loss_weight
+
+        if output_dict:
+            return {
+                "contrastive_loss": clip_loss,
+                "caption_loss": caption_loss,
+            }
+
+        return clip_loss, caption_loss
 
 
 class DistillClipLoss(ClipLoss):

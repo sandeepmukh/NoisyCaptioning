@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from torch import optim
 from torch.cuda.amp import GradScaler
-from torch.optim.swa_utils import get_ema_multi_avg_fn, AveragedModel
+from torch.optim.swa_utils import AveragedModel
 
 try:
     import wandb
@@ -39,8 +39,8 @@ from training.data import get_data
 from training.distributed import is_master, init_distributed_device, broadcast_object
 from training.logger import setup_logging
 from training.params import parse_args
-from training.scheduler import cosine_lr, const_lr, const_lr_cooldown
-from training.train import train_one_epoch, evaluate, update_swa_model
+from training.scheduler import cosine_lr, const_lr, const_lr_cooldown, get_ema_with_warmup
+from training.train import train_one_epoch, evaluate
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 
@@ -345,7 +345,7 @@ def main(args):
 
     if args.elr_distill:
         dist_model = AveragedModel(
-            model, multi_avg_fn=get_ema_multi_avg_fn(args.elr_ema_decay)
+            model, multi_avg_fn=get_ema_with_warmup(args)
         )
 
     # create optimizer and scaler
@@ -424,6 +424,17 @@ def main(args):
         tokenizer=tokenizer,
     )
     assert len(data), "At least one train or eval dataset must be specified."
+    
+    # if args.selective_loss:
+    #     ts = args.train_num_samples
+    #     args.train_num_samples = 50_000
+    #     data_eval_train = get_data(
+    #         args,
+    #         (preprocess_train, preprocess_val),
+    #         epoch=start_epoch,
+    #         tokenizer=tokenizer,
+    #     )
+    #     args.train_num_samples = ts
 
     # create scheduler if train
     scheduler = None

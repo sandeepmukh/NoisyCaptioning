@@ -427,9 +427,21 @@ def parse_args(args):
     parser.add_argument(
         "--elr-teacher-warmup",
         type=int,
-        default=3,
+        default=5,
         help="Number of epochs to warmup ELR teacher."
     )
+    parser.add_argument(
+        "--selective-loss",
+        default=False,
+        action='store_true',
+        help="Use selective loss with the ELR instead of direct teaching.",
+    )
+    parser.add_argument(
+        "--selective-loss-tau",
+        default=0.7,
+        help="Quantile threshold for selective loss."
+    )
+    
     parser.add_argument(
         "--remote-sync",
         type=str,

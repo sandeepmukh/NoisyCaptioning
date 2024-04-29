@@ -66,15 +66,6 @@ def train_one_epoch_semisupervised(model1, model2, data, loss, epoch, optimizer,
 def fit_gmm(model, data, loss, tb_writer=None):
     pass
 
-def sigmoid_rampup(current, rampup_length):
-    """Exponential rampup from  2"""
-    if rampup_length == 0:
-        return 1.0
-    else:
-        current = np.clip(current, 0.0, rampup_length)
-        phase = 1.0 - current / rampup_length
-        return float(np.exp(-5.0 * phase * phase))
-
 def update_swa_model(model, dist_model, batch, args, epoch, swa_scheduler=None):
     device = torch.device(args.device)
     autocast = get_autocast(args.precision)
