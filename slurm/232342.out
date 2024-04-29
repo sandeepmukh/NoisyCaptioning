@@ -1,0 +1,441 @@
++ echo 'Activating conda environment...'
+Activating conda environment...
+++ /nas/ucb/tutrinh/anaconda3/bin/conda shell.bash hook
++ eval 'export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\''
+
+# Copyright (C) 2012 Anaconda, Inc
+# SPDX-License-Identifier: BSD-3-Clause
+__conda_exe() (
+    "$CONDA_EXE" $_CE_M $_CE_CONDA "$@"
+)
+
+__conda_hashr() {
+    if [ -n "${ZSH_VERSION:+x}" ]; then
+        \rehash
+    elif [ -n "${POSH_VERSION:+x}" ]; then
+        :  # pass
+    else
+        \hash -r
+    fi
+}
+
+__conda_activate() {
+    if [ -n "${CONDA_PS1_BACKUP:+x}" ]; then
+        # Handle transition from shell activated with conda <= 4.3 to a subsequent activation
+        # after conda updated to >= 4.4. See issue #6173.
+        PS1="$CONDA_PS1_BACKUP"
+        \unset CONDA_PS1_BACKUP
+    fi
+    \local ask_conda
+    ask_conda="$(PS1="${PS1:-}" __conda_exe shell.posix "$@")" || \return
+    \eval "$ask_conda"
+    __conda_hashr
+}
+
+__conda_reactivate() {
+    \local ask_conda
+    ask_conda="$(PS1="${PS1:-}" __conda_exe shell.posix reactivate)" || \return
+    \eval "$ask_conda"
+    __conda_hashr
+}
+
+conda() {
+    \local cmd="${1-__missing__}"
+    case "$cmd" in
+        activate|deactivate)
+            __conda_activate "$@"
+            ;;
+        install|update|upgrade|remove|uninstall)
+            __conda_exe "$@" || \return
+            __conda_reactivate
+            ;;
+        *)
+            __conda_exe "$@"
+            ;;
+    esac
+}
+
+if [ -z "${CONDA_SHLVL+x}" ]; then
+    \export CONDA_SHLVL=0
+    # In dev-mode CONDA_EXE is python.exe and on Windows
+    # it is in a different relative location to condabin.
+    if [ -n "${_CE_CONDA:+x}" ] && [ -n "${WINDIR+x}" ]; then
+        PATH="$(\dirname "$CONDA_EXE")/condabin${PATH:+":${PATH}"}"
+    else
+        PATH="$(\dirname "$(\dirname "$CONDA_EXE")")/condabin${PATH:+":${PATH}"}"
+    fi
+    \export PATH
+
+    # We'\''re not allowing PS1 to be unbound. It must at least be set.
+    # However, we'\''re not exporting it, which can cause problems when starting a second shell
+    # via a first shell (i.e. starting zsh from bash).
+    if [ -z "${PS1+x}" ]; then
+        PS1=
+    fi
+fi
+
+conda activate base'
+++ export CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ export _CE_M=
+++ _CE_M=
+++ export _CE_CONDA=
+++ _CE_CONDA=
+++ export CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ '[' -z x ']'
+++ conda activate base
+++ local cmd=activate
+++ case "$cmd" in
+++ __conda_activate activate base
+++ '[' -n '' ']'
+++ local ask_conda
++++ PS1=
++++ __conda_exe shell.posix activate base
++++ /nas/ucb/tutrinh/anaconda3/bin/conda shell.posix activate base
+++ ask_conda='PS1='\''(base) '\''
+export PATH='\''/nas/ucb/tutrinh/anaconda3/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_PREFIX='\''/nas/ucb/tutrinh/anaconda3'\''
+export CONDA_SHLVL='\''2'\''
+export CONDA_DEFAULT_ENV='\''base'\''
+export CONDA_PROMPT_MODIFIER='\''(base) '\''
+export CONDA_PREFIX_1='\''/nas/ucb/tutrinh/anaconda3/envs/chai'\''
+export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\'''
+++ eval 'PS1='\''(base) '\''
+export PATH='\''/nas/ucb/tutrinh/anaconda3/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_PREFIX='\''/nas/ucb/tutrinh/anaconda3'\''
+export CONDA_SHLVL='\''2'\''
+export CONDA_DEFAULT_ENV='\''base'\''
+export CONDA_PROMPT_MODIFIER='\''(base) '\''
+export CONDA_PREFIX_1='\''/nas/ucb/tutrinh/anaconda3/envs/chai'\''
+export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\'''
++++ PS1='(base) '
++++ export PATH=/nas/ucb/tutrinh/anaconda3/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
++++ PATH=/nas/ucb/tutrinh/anaconda3/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
++++ export CONDA_PREFIX=/nas/ucb/tutrinh/anaconda3
++++ CONDA_PREFIX=/nas/ucb/tutrinh/anaconda3
++++ export CONDA_SHLVL=2
++++ CONDA_SHLVL=2
++++ export CONDA_DEFAULT_ENV=base
++++ CONDA_DEFAULT_ENV=base
++++ export 'CONDA_PROMPT_MODIFIER=(base) '
++++ CONDA_PROMPT_MODIFIER='(base) '
++++ export CONDA_PREFIX_1=/nas/ucb/tutrinh/anaconda3/envs/chai
++++ CONDA_PREFIX_1=/nas/ucb/tutrinh/anaconda3/envs/chai
++++ export CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
++++ CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
++++ export _CE_M=
++++ _CE_M=
++++ export _CE_CONDA=
++++ _CE_CONDA=
++++ export CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
++++ CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ __conda_hashr
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
++ echo 'Activating conda environment..........'
+Activating conda environment..........
++ conda activate chai
++ local cmd=activate
++ case "$cmd" in
++ __conda_activate activate chai
++ '[' -n '' ']'
++ local ask_conda
+++ PS1='(base) '
+++ __conda_exe shell.posix activate chai
+++ /nas/ucb/tutrinh/anaconda3/bin/conda shell.posix activate chai
++ ask_conda='PS1='\''(chai) '\''
+export PATH='\''/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_PREFIX='\''/nas/ucb/tutrinh/anaconda3/envs/chai'\''
+export CONDA_SHLVL='\''3'\''
+export CONDA_DEFAULT_ENV='\''chai'\''
+export CONDA_PROMPT_MODIFIER='\''(chai) '\''
+export CONDA_PREFIX_2='\''/nas/ucb/tutrinh/anaconda3'\''
+export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\'''
++ eval 'PS1='\''(chai) '\''
+export PATH='\''/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_PREFIX='\''/nas/ucb/tutrinh/anaconda3/envs/chai'\''
+export CONDA_SHLVL='\''3'\''
+export CONDA_DEFAULT_ENV='\''chai'\''
+export CONDA_PROMPT_MODIFIER='\''(chai) '\''
+export CONDA_PREFIX_2='\''/nas/ucb/tutrinh/anaconda3'\''
+export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\'''
+++ PS1='(chai) '
+++ export PATH=/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
+++ PATH=/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
+++ export CONDA_PREFIX=/nas/ucb/tutrinh/anaconda3/envs/chai
+++ CONDA_PREFIX=/nas/ucb/tutrinh/anaconda3/envs/chai
+++ export CONDA_SHLVL=3
+++ CONDA_SHLVL=3
+++ export CONDA_DEFAULT_ENV=chai
+++ CONDA_DEFAULT_ENV=chai
+++ export 'CONDA_PROMPT_MODIFIER=(chai) '
+++ CONDA_PROMPT_MODIFIER='(chai) '
+++ export CONDA_PREFIX_2=/nas/ucb/tutrinh/anaconda3
+++ CONDA_PREFIX_2=/nas/ucb/tutrinh/anaconda3
+++ export CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ export _CE_M=
+++ _CE_M=
+++ export _CE_CONDA=
+++ _CE_CONDA=
+++ export CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
++ __conda_hashr
++ '[' -n '' ']'
++ '[' -n '' ']'
++ hash -r
++ echo 'Activated!'
+Activated!
++ echo 'Logging into wandb...'
+Logging into wandb...
++ wandb login 4a6017fc91542ffdb82ee3d6213e9cf0c11fd892
+wandb: Appending key for api.wandb.ai to your netrc file: /home/tutrinh/.netrc
++ echo 'Logged into wandb!'
+Logged into wandb!
++ export CUDA_LAUNCH_BLOCKING=1
++ CUDA_LAUNCH_BLOCKING=1
++ export MASTER_PORT=8080
++ MASTER_PORT=8080
++ echo 'Set CUDA environment!'
+Set CUDA environment!
+++ scontrol show hostnames ppo.ist.berkeley.edu
+++ head -n 1
++ master_addr=ppo.ist.berkeley.edu
++ export MASTER_ADDR=ppo.ist.berkeley.edu
++ MASTER_ADDR=ppo.ist.berkeley.edu
++ echo 'Set master addr to ppo.ist.berkeley.edu!'
+Set master addr to ppo.ist.berkeley.edu!
++ cd /nas/ucb/tutrinh/backup/NoisyCaptioning
++ export PYTHONPATH=:/nas/ucb/tutrinh/backup/NoisyCaptioning/src
++ PYTHONPATH=:/nas/ucb/tutrinh/backup/NoisyCaptioning/src
++ echo 'Set directory!'
+Set directory!
++ echo 'STARTING TRAINING........'
+STARTING TRAINING........
++ srun --cpu_bind=v --accel-bind=gn python -u src/training/main.py --save-frequency 5 '--train-data=/nas/ucb/tutrinh/cc3m/cc3m/{00000..00331}.tar' --train-num-samples 1000000 '--val-data=/nas/ucb/tutrinh/cc3m/cc3m_val/{00000..00001}.tar' --val-num-samples 10000 --imagenet-val /nas/ucb/tutrinh/imagenet/validation --dataset-type webdataset --batch-size 128 --warmup 2000 --epochs 100 --workers 8 --lr 5e-4 --precision amp --elr-distill --model coca_ViT-B-32 --name coca_cc3m_elr_14 --report-to wandb --wandb-project-name open-clip-cc3m-elr --gather-with-grad --local-loss --torchcompile
+2024-04-28,01:59:43 | INFO | Running in distributed mode with multiple processes. Device: cuda:3.Process (global: 3, local 3), total 6.
+2024-04-28,01:59:43 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-28,01:59:43 | INFO | Running in distributed mode with multiple processes. Device: cuda:5.Process (global: 5, local 5), total 6.
+2024-04-28,01:59:43 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-28,01:59:43 | INFO | Running in distributed mode with multiple processes. Device: cuda:2.Process (global: 2, local 2), total 6.
+2024-04-28,01:59:43 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-28,01:59:43 | INFO | Running in distributed mode with multiple processes. Device: cuda:1.Process (global: 1, local 1), total 6.
+2024-04-28,01:59:43 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-28,01:59:44 | INFO | Running in distributed mode with multiple processes. Device: cuda:0.Process (global: 0, local 0), total 6.
+2024-04-28,01:59:44 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-28,01:59:44 | INFO | Running in distributed mode with multiple processes. Device: cuda:4.Process (global: 4, local 4), total 6.
+2024-04-28,01:59:44 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-28,01:59:46 | INFO | Model:
+2024-04-28,01:59:46 | INFO | CoCa(
+  (text): TextTransformer(
+    (token_embedding): Embedding(49408, 512)
+    (transformer): Transformer(
+      (resblocks): ModuleList(
+        (0-11): 12 x ResidualAttentionBlock(
+          (ln_1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+          (attn): MultiheadAttention(
+            (out_proj): NonDynamicallyQuantizableLinear(in_features=512, out_features=512, bias=True)
+          )
+          (ls_1): Identity()
+          (ln_2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+          (mlp): Sequential(
+            (c_fc): Linear(in_features=512, out_features=2048, bias=True)
+            (gelu): GELU(approximate='none')
+            (c_proj): Linear(in_features=2048, out_features=512, bias=True)
+          )
+          (ls_2): Identity()
+        )
+      )
+    )
+    (ln_final): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+  )
+  (visual): VisionTransformer(
+    (conv1): Conv2d(3, 768, kernel_size=(32, 32), stride=(32, 32), bias=False)
+    (patch_dropout): Identity()
+    (ln_pre): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+    (transformer): Transformer(
+      (resblocks): ModuleList(
+        (0-11): 12 x ResidualAttentionBlock(
+          (ln_1): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+          (attn): MultiheadAttention(
+            (out_proj): NonDynamicallyQuantizableLinear(in_features=768, out_features=768, bias=True)
+          )
+          (ls_1): Identity()
+          (ln_2): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+          (mlp): Sequential(
+            (c_fc): Linear(in_features=768, out_features=3072, bias=True)
+            (gelu): GELU(approximate='none')
+            (c_proj): Linear(in_features=3072, out_features=768, bias=True)
+          )
+          (ls_2): Identity()
+        )
+      )
+    )
+    (attn_pool): AttentionalPooler(
+      (attn): MultiheadAttention(
+        (out_proj): NonDynamicallyQuantizableLinear(in_features=512, out_features=512, bias=True)
+      )
+      (ln_q): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+      (ln_k): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+    )
+    (ln_post): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+  )
+  (text_decoder): MultimodalTransformer(
+    (resblocks): ModuleList(
+      (0-11): 12 x ResidualAttentionBlock(
+        (ln_1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (attn): MultiheadAttention(
+          (out_proj): NonDynamicallyQuantizableLinear(in_features=512, out_features=512, bias=True)
+        )
+        (ls_1): Identity()
+        (ln_2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (c_fc): Linear(in_features=512, out_features=2048, bias=True)
+          (gelu): GELU(approximate='none')
+          (c_proj): Linear(in_features=2048, out_features=512, bias=True)
+        )
+        (ls_2): Identity()
+      )
+    )
+    (cross_attn): ModuleList(
+      (0-11): 12 x ResidualAttentionBlock(
+        (ln_1): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (attn): MultiheadAttention(
+          (out_proj): NonDynamicallyQuantizableLinear(in_features=512, out_features=512, bias=True)
+        )
+        (ls_1): Identity()
+        (ln_1_kv): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (ln_2): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+        (mlp): Sequential(
+          (c_fc): Linear(in_features=512, out_features=2048, bias=True)
+          (gelu): GELU(approximate='none')
+          (c_proj): Linear(in_features=2048, out_features=512, bias=True)
+        )
+        (ls_2): Identity()
+      )
+    )
+    (ln_final): LayerNorm((512,), eps=1e-05, elementwise_affine=True)
+  )
+)
+2024-04-28,01:59:46 | INFO | Params:
+2024-04-28,01:59:46 | INFO |   accum_freq: 1
+2024-04-28,01:59:46 | INFO |   aug_cfg: {}
+2024-04-28,01:59:46 | INFO |   batch_size: 128
+2024-04-28,01:59:46 | INFO |   beta1: 0.9
+2024-04-28,01:59:46 | INFO |   beta2: 0.98
+2024-04-28,01:59:46 | INFO |   checkpoint_path: ./logs/coca_cc3m_elr_14/checkpoints
+2024-04-28,01:59:46 | INFO |   coca_caption_loss_weight: 2.0
+2024-04-28,01:59:46 | INFO |   coca_contrastive_loss_weight: 1.0
+2024-04-28,01:59:46 | INFO |   copy_codebase: False
+2024-04-28,01:59:46 | INFO |   csv_caption_key: title
+2024-04-28,01:59:46 | INFO |   csv_img_key: filepath
+2024-04-28,01:59:46 | INFO |   csv_separator: 	
+2024-04-28,01:59:46 | INFO |   dataset_resampled: False
+2024-04-28,01:59:46 | INFO |   dataset_type: webdataset
+2024-04-28,01:59:46 | INFO |   ddp_static_graph: False
+2024-04-28,01:59:46 | INFO |   debug: False
+2024-04-28,01:59:46 | INFO |   delete_previous_checkpoint: False
+2024-04-28,01:59:46 | INFO |   device: cuda:0
+2024-04-28,01:59:46 | INFO |   dist_backend: nccl
+2024-04-28,01:59:46 | INFO |   dist_url: env://
+2024-04-28,01:59:46 | INFO |   distill: False
+2024-04-28,01:59:46 | INFO |   distill_model: None
+2024-04-28,01:59:46 | INFO |   distill_pretrained: None
+2024-04-28,01:59:46 | INFO |   distributed: True
+2024-04-28,01:59:46 | INFO |   elr_distill: True
+2024-04-28,01:59:46 | INFO |   elr_ema_decay: 0.997
+2024-04-28,01:59:46 | INFO |   elr_teacher_warmup: 3
+2024-04-28,01:59:46 | INFO |   elr_weight: 3.0
+2024-04-28,01:59:46 | INFO |   epochs: 100
+2024-04-28,01:59:46 | INFO |   epochs_cooldown: None
+2024-04-28,01:59:46 | INFO |   eps: 1e-06
+2024-04-28,01:59:46 | INFO |   force_custom_text: False
+2024-04-28,01:59:46 | INFO |   force_image_size: None
+2024-04-28,01:59:46 | INFO |   force_patch_dropout: None
+2024-04-28,01:59:46 | INFO |   force_quick_gelu: False
+2024-04-28,01:59:46 | INFO |   gather_with_grad: True
+2024-04-28,01:59:46 | INFO |   grad_checkpointing: False
+2024-04-28,01:59:46 | INFO |   grad_clip_norm: None
+2024-04-28,01:59:46 | INFO |   horovod: False
+2024-04-28,01:59:46 | INFO |   image_interpolation: None
+2024-04-28,01:59:46 | INFO |   image_mean: None
+2024-04-28,01:59:46 | INFO |   image_resize_mode: None
+2024-04-28,01:59:46 | INFO |   image_std: None
+2024-04-28,01:59:46 | INFO |   imagenet_v2: None
+2024-04-28,01:59:46 | INFO |   imagenet_val: /nas/ucb/tutrinh/imagenet/validation
+2024-04-28,01:59:46 | INFO |   local_loss: True
+2024-04-28,01:59:46 | INFO |   local_rank: 0
+2024-04-28,01:59:46 | INFO |   lock_image: False
+2024-04-28,01:59:46 | INFO |   lock_image_freeze_bn_stats: False
+2024-04-28,01:59:46 | INFO |   lock_image_unlocked_groups: 0
+2024-04-28,01:59:46 | INFO |   lock_text: False
+2024-04-28,01:59:46 | INFO |   lock_text_freeze_layer_norm: False
+2024-04-28,01:59:46 | INFO |   lock_text_unlocked_layers: 0
+2024-04-28,01:59:46 | INFO |   log_every_n_steps: 100
+2024-04-28,01:59:46 | INFO |   log_level: 20
+2024-04-28,01:59:46 | INFO |   log_local: False
+2024-04-28,01:59:46 | INFO |   log_path: ./logs/coca_cc3m_elr_14/out.log
+2024-04-28,01:59:46 | INFO |   logs: ./logs/
+2024-04-28,01:59:46 | INFO |   lr: 0.0005
+2024-04-28,01:59:46 | INFO |   lr_cooldown_end: 0.0
+2024-04-28,01:59:46 | INFO |   lr_cooldown_power: 1.0
+2024-04-28,01:59:46 | INFO |   lr_scheduler: cosine
+2024-04-28,01:59:46 | INFO |   max_elr_bn_batches: 5
+2024-04-28,01:59:46 | INFO |   model: coca_ViT-B-32
+2024-04-28,01:59:46 | INFO |   name: coca_cc3m_elr_14
+2024-04-28,01:59:46 | INFO |   no_set_device_rank: False
+2024-04-28,01:59:46 | INFO |   precision: amp
+2024-04-28,01:59:46 | INFO |   pretrained: 
+2024-04-28,01:59:46 | INFO |   pretrained_image: False
+2024-04-28,01:59:46 | INFO |   rank: 0
+2024-04-28,01:59:46 | INFO |   remote_sync: None
+2024-04-28,01:59:46 | INFO |   remote_sync_frequency: 300
+2024-04-28,01:59:46 | INFO |   remote_sync_protocol: s3
+2024-04-28,01:59:46 | INFO |   report_to: wandb
+2024-04-28,01:59:46 | INFO |   resume: None
+2024-04-28,01:59:46 | INFO |   save_frequency: 5
+2024-04-28,01:59:46 | INFO |   save_most_recent: False
+2024-04-28,01:59:46 | INFO |   seed: 0
+2024-04-28,01:59:46 | INFO |   siglip: False
+2024-04-28,01:59:46 | INFO |   skip_scheduler: False
+2024-04-28,01:59:46 | INFO |   tensorboard: False
+2024-04-28,01:59:46 | INFO |   tensorboard_path: 
+2024-04-28,01:59:46 | INFO |   torchcompile: True
+2024-04-28,01:59:46 | INFO |   torchscript: False
+2024-04-28,01:59:46 | INFO |   trace: False
+2024-04-28,01:59:46 | INFO |   train_data: /nas/ucb/tutrinh/cc3m/cc3m/{00000..00331}.tar
+2024-04-28,01:59:46 | INFO |   train_data_upsampling_factors: None
+2024-04-28,01:59:46 | INFO |   train_num_samples: 1000000
+2024-04-28,01:59:46 | INFO |   use_bn_sync: False
+2024-04-28,01:59:46 | INFO |   use_bnb_linear: None
+2024-04-28,01:59:46 | INFO |   val_data: /nas/ucb/tutrinh/cc3m/cc3m_val/{00000..00001}.tar
+2024-04-28,01:59:46 | INFO |   val_frequency: 1
+2024-04-28,01:59:46 | INFO |   val_num_samples: 10000
+2024-04-28,01:59:46 | INFO |   wandb: True
+2024-04-28,01:59:46 | INFO |   wandb_notes: 
+2024-04-28,01:59:46 | INFO |   wandb_project_name: open-clip-cc3m-elr
+2024-04-28,01:59:46 | INFO |   warmup: 2000
+2024-04-28,01:59:46 | INFO |   wd: 0.2
+2024-04-28,01:59:46 | INFO |   workers: 8
+2024-04-28,01:59:46 | INFO |   world_size: 6
+2024-04-28,01:59:46 | INFO |   zeroshot_frequency: 2
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** JOB 232342 ON ppo.ist.berkeley.edu CANCELLED AT 2024-04-28T02:05:48 ***
+slurmstepd: error: *** STEP 232342.0 ON ppo.ist.berkeley.edu CANCELLED AT 2024-04-28T02:05:48 ***
