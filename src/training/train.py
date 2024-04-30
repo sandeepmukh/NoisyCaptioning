@@ -833,6 +833,77 @@ def evaluate(model, data, epoch, args, tb_writer=None, tokenizer=None):
     return metrics
 
 
+def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
+    device = torch.device(args.device)
+    autocast = get_autocast(args.precision)
+    input_dtype = get_input_dtype(args.precision)
+    
+    for checkpoint in checkpoints:
+        checkpoint_dict = torch.load(checkpoint)
+        saved_epoch = checkpoint_dict["epoch"]
+        model.load_state_dict(checkpoint_dict["model_state_dict"])
+        model.eval()
+        metrics = {}
+        if not is_master(args):
+            return metrics
+        metrics["saved_epoch"] = saved_epoch
+
+        # NOTE: no zero shot analysis yet for presentation
+        # zero_shot_metrics = zero_shot_eval(model, data, epoch, args, tokenizer=tokenizer)
+        # metrics.update(zero_shot_metrics)
+
+        all_image_features, all_text_features = [], []
+        all_loss, all_gen_loss = [], []
+        all_labels, all_logits, all_logit_scales = [], [], []
+        all_logits_per_image, all_logits_per_text = [], []
+        with torch.no_grad():
+            for i, (img, text) in enumerate(data):
+                img = img.to(device=device, dtype=input_dtype, non_blocking=True).unsqueeze(0)
+                text = text.to(device=device, non_blocking=True).unsqueeze(0)
+                with autocast():
+                    model_out = model(img, text)
+                    image_features = model_out["image_features"]
+                    text_features = model_out["text_features"]
+                    
+                    logit_scale = model_out["logit_scale"]
+                    logit_scale = logit_scale.mean()
+                    logits_per_image = logit_scale * image_features @ text_features.t()
+                    logits_per_text = logits_per_image.t()
+
+                    all_image_features.append(image_features.cpu())
+                    all_text_features.append(text_features.cpu())
+                    all_logits.append(model_out["logits"])
+                    all_logit_scales.append(logit_scale)
+                    all_labels.append(model_out["labels"])
+                    all_logits_per_image.append(logits_per_image)
+                    all_logits_per_text.append(logits_per_text)
+
+                    batch_size = img.shape[0]
+                    labels = torch.arange(batch_size, device=device).long()
+                    total_loss = (F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)) / 2
+                    gen_loss = maybe_compute_generative_loss(model_out)
+                
+                all_loss.append(total_loss * batch_size)
+                if gen_loss is not None:
+                    all_gen_loss.append(gen_loss * batch_size)
+        
+        metrics["all_image_features"] = all_image_features
+        metrics["all_text_features"] = all_text_features
+        metrics["all_loss"] = all_loss
+        metrics["all_gen_loss"] = all_gen_loss
+        metrics["all_labels"] = all_labels
+        metrics["all_logits"] = all_logits
+        metrics["all_logit_scales"] = all_logit_scales
+        metrics["all_logits_per_image"] = all_logits_per_image
+        metrics["all_logits_per_text"] = all_logits_per_text
+
+        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}.jsonl"), "w") as f:
+            f.write(json.dumps(metrics))
+            f.write("\n")
+    
+    # return metrics
+
+
 def get_clip_metrics(image_features, text_features, logit_scale):
     metrics = {}
     logits_per_image = (logit_scale * image_features @ text_features.t()).detach().cpu()

@@ -45,7 +45,7 @@ from training.scheduler import (
     const_lr_cooldown,
     get_ema_with_warmup,
 )
-from training.train import train_one_epoch, train_one_dividemix_epoch, evaluate
+from training.train import train_one_epoch, train_one_dividemix_epoch, evaluate, evaluate_subset
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 from data import get_list_dataset
@@ -246,10 +246,7 @@ def main(args):
         # FIXME: support distillation with coca.
         assert "coca" not in args.model.lower()
 
-    if (
-        isinstance(args.force_image_size, (tuple, list))
-        and len(args.force_image_size) == 1
-    ):
+    if (isinstance(args.force_image_size, (tuple, list)) and len(args.force_image_size) == 1):
         # arg is nargs, single (square) image size list -> int
         args.force_image_size = args.force_image_size[0]
     random_seed(args.seed, 0)
@@ -276,26 +273,8 @@ def main(args):
         output_dict=True,
         **model_kwargs,
     )
-    if args.dividemix:  # need another model
-        model2, _, _ = create_model_and_transforms(
-            args.model,
-            args.pretrained,
-            precision=args.precision,
-            device=device,
-            jit=args.torchscript,
-            force_quick_gelu=args.force_quick_gelu,
-            force_custom_text=args.force_custom_text,
-            force_patch_dropout=args.force_patch_dropout,
-            force_image_size=args.force_image_size,
-            image_mean=args.image_mean,
-            image_std=args.image_std,
-            image_interpolation=args.image_interpolation,
-            image_resize_mode=args.image_resize_mode,  # only effective for inference
-            aug_cfg=args.aug_cfg,
-            pretrained_image=args.pretrained_image,
-            output_dict=True,
-            **model_kwargs,
-        )
+    if args.eval:
+        checkpoint_files = [f"{args.eval_checkpoint_dir}/epoch{i}.pt" for i in range(args.eval_checkpoint_start, args.eval_checkpoint_end + 1, args.eval_checkpoint_interval)]
 
     if args.distill:
         # FIXME: currently assumes the model you're distilling from has the same tokenizer & transforms.
@@ -457,6 +436,16 @@ def main(args):
         tokenizer=tokenizer,
     )
     assert len(data), "At least one train or eval dataset must be specified."
+    if args.eval:
+        data_count = 0
+        data_subset = []
+        for i, (img, text) in enumerate(data["val"].dataloader):
+            if data_count < args.eval_samples:
+                if i % 100 == 0:
+                    data_subset.append((img, text))
+                    data_count += 1
+            else:
+                break
 
     if args.dividemix:
         ts = args.train_num_samples
@@ -537,6 +526,13 @@ def main(args):
         logging.info("Compiling model...")
         model = torch.compile(original_model)
 
+    if args.eval:
+        if args.use_bnb_linear is not None:
+            from open_clip.utils import convert_int8_model_to_inference_mode
+            convert_int8_model_to_inference_mode(model)
+        evaluate_subset(model, checkpoint_files, data_subset, args, tb_writer=writer, tokenizer=tokenizer)
+        return
+    
     if "train" not in data:
         # If using int8, convert to inference mode.
         if args.use_bnb_linear is not None:

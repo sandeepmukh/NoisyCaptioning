@@ -26,6 +26,46 @@ class ParseKwargs(argparse.Action):
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--eval",
+        default=False,
+        action="store_true",
+        help="Purely evaluate or not"
+    )
+    parser.add_argument(
+        "--eval-log-dir",
+        type=str,
+        help="Where to store eval metrics"
+    )
+    parser.add_argument(
+        "--eval-samples",
+        type=int,
+        default=50,
+        help="Number of samples used for eval"
+    )
+    parser.add_argument(
+        "--eval-checkpoint-dir",
+        type=str,
+        help="Model checkpoints to be used"
+    )
+    parser.add_argument(
+        "--eval-checkpoint-start",
+        type=int,
+        default=5,
+        help="Start index of checkpoint file"
+    )
+    parser.add_argument(
+        "--eval-checkpoint-end",
+        type=int,
+        default=100,
+        help="End index of checkpoint file"
+    )
+    parser.add_argument(
+        "--eval-checkpoint-interval",
+        type=int,
+        default=10,
+        help="How often we pull checkpoint file"
+    )
+    parser.add_argument(
         "--train-data",
         type=str,
         default=None,
