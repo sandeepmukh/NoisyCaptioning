@@ -363,6 +363,66 @@ class DistillCoCaLossV2(DistillCoCaLoss):
             }
 
         return clip_loss, caption_loss
+    
+class DistillCoCaLossDivideMix(DistillCoCaLoss):
+    
+    def __init__(
+        self,
+        caption_loss_weight,
+        clip_loss_weight,
+        elr_weight,
+        pad_id=0,
+        local_loss=False,
+        gather_with_grad=False,
+        cache_labels=False,
+        rank=0,
+        world_size=1,
+        use_horovod=False,
+    ):
+        super().__init__(
+            caption_loss_weight,
+            clip_loss_weight,
+            elr_weight,
+            pad_id=pad_id,
+            local_loss=local_loss,
+            gather_with_grad=gather_with_grad,
+            cache_labels=cache_labels,
+            rank=rank,
+            world_size=world_size,
+            use_horovod=use_horovod,
+        )
+        self.caption = lambda yhat, y: -(nn.functional.softmax(y, 1) * nn.functional.log_softmax(yhat, 1)).sum(1).mean()
+        
+    
+    def forward(
+        self,
+        image_features,
+        text_features,
+        logits,
+        labels,
+        logit_scale,
+        output_dict=False,
+    ):
+
+        clip_loss = torch.tensor(0)
+
+        if self.clip_loss_weight:
+            clip_loss = super(CoCaLoss, self).forward(image_features, text_features, logit_scale)
+            clip_loss = self.clip_loss_weight * clip_loss
+            
+        caption_loss = self.caption(
+            logits.permute(0, 2, 1),
+            labels.permute(0, 2, 1),
+        )
+        caption_loss = caption_loss * self.caption_loss_weight
+
+        if output_dict:
+            return {
+                "contrastive_loss": clip_loss,
+                "caption_loss": caption_loss,
+            }
+
+        return clip_loss, caption_loss
 
 
 class DistillClipLoss(ClipLoss):

@@ -39,8 +39,13 @@ from training.data import get_data
 from training.distributed import is_master, init_distributed_device, broadcast_object
 from training.logger import setup_logging
 from training.params import parse_args
-from training.scheduler import cosine_lr, const_lr, const_lr_cooldown, get_ema_with_warmup
-from training.train import train_one_epoch, evaluate
+from training.scheduler import (
+    cosine_lr,
+    const_lr,
+    const_lr_cooldown,
+    get_ema_with_warmup,
+)
+from training.train import train_one_epoch, train_one_dividemix_epoch, evaluate
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 
@@ -344,9 +349,7 @@ def main(args):
             )
 
     if args.elr_distill:
-        dist_model = AveragedModel(
-            model, multi_avg_fn=get_ema_with_warmup(args)
-        )
+        dist_model = AveragedModel(model, multi_avg_fn=get_ema_with_warmup(args))
 
     # create optimizer and scaler
     optimizer = None
@@ -406,7 +409,9 @@ def main(args):
             if scaler is not None and "scaler" in checkpoint:
                 scaler.load_state_dict(checkpoint["scaler"])
             if args.elr_distill:
-                dist_model.module.module.load_state_dict(checkpoint["distill_state_dict"])
+                dist_model.load_state_dict(
+                    checkpoint["distill_state_dict"]
+                )
             logging.info(
                 f"=> resuming checkpoint '{args.resume}' (epoch {start_epoch})"
             )
@@ -424,17 +429,17 @@ def main(args):
         tokenizer=tokenizer,
     )
     assert len(data), "At least one train or eval dataset must be specified."
-    
-    # if args.selective_loss:
-    #     ts = args.train_num_samples
-    #     args.train_num_samples = 50_000
-    #     data_eval_train = get_data(
-    #         args,
-    #         (preprocess_train, preprocess_val),
-    #         epoch=start_epoch,
-    #         tokenizer=tokenizer,
-    #     )
-    #     args.train_num_samples = ts
+
+    if args.dividemix:
+        ts = args.train_num_samples
+        args.train_num_samples = 20_000
+        data_eval_train = get_data(
+            args,
+            (preprocess_train, preprocess_val),
+            epoch=start_epoch,
+            tokenizer=tokenizer,
+        )
+        args.train_num_samples = ts
 
     # create scheduler if train
     scheduler = None
@@ -520,18 +525,35 @@ def main(args):
         if is_master(args):
             logging.info(f"Start epoch {epoch}")
 
-        train_one_epoch(
-            model,
-            data,
-            loss,
-            epoch,
-            optimizer,
-            scaler,
-            scheduler,
-            dist_model ,
-            args,
-            tb_writer=writer,
-        )
+        if not args.dividemix or (
+            args.dividemix and epoch < args.elr_teacher_warmup
+        ):
+            train_one_epoch(
+                model,
+                data,
+                loss,
+                epoch,
+                optimizer,
+                scaler,
+                scheduler,
+                dist_model,
+                args,
+                tb_writer=writer,
+            )
+        else:
+            train_one_dividemix_epoch(
+                model,
+                data,
+                loss,
+                epoch,
+                optimizer,
+                scaler,
+                scheduler,
+                dist_model,
+                args,
+                data_eval_train,
+                tb_writer=writer,
+            )
         completed_epoch = epoch + 1
 
         if any(v in data for v in ("val", "imagenet-val", "imagenet-v2")):
@@ -556,8 +578,10 @@ def main(args):
                 # check if ddp
                 if args.distributed:
                     checkpoint_dict["distill_state_dict"] = dist_model.state_dict()
-                else: 
-                    checkpoint_dict["distill_state_dict"] = dist_model.module.state_dict()
+                else:
+                    checkpoint_dict["distill_state_dict"] = (
+                        dist_model.module.state_dict()
+                    )
             if scaler is not None:
                 checkpoint_dict["scaler"] = scaler.state_dict()
 
