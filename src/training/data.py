@@ -598,3 +598,11 @@ def get_list_dataset(args, images_and_texts):
     dataloader.num_batches = len(dataloader) // args.batch_size + 1
 
     return DataInfo(dataloader, sampler)
+def get_data_eval_train(args, preprocess_fns, epoch=0, tokenizer=None):
+    preprocess_train, preprocess_val = preprocess_fns
+    data = {}
+    assert args.train_data
+    data['train'] = get_dataset_fn(args.train_data, args.dataset_type)(
+        args, preprocess_train, is_train=True, epoch=epoch, tokenizer=tokenizer)
+    
+    return data

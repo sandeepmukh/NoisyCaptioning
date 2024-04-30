@@ -428,9 +428,39 @@ def parse_args(args):
         help="Weight assigned to contrastive loss when training CoCa."
     )
     parser.add_argument(
+        "--dividemix",
+        default=False,
+        action="store_true",
+        help="Use DivideMix for training."
+    )
+    parser.add_argument(
+        "--T",
+        type=float,
+        default=2.0,
+        help="Temperature for DivideMix."
+    )
+    parser.add_argument(
+        "--dividemix-alpha",
+        type=float,
+        default=0.5,
+        help="Parameter for beta distribution in DivideMix MixUp."
+    )
+    parser.add_argument(
+        "--dividemix-warmup-epochs",
+        type=int,
+        default=0,
+        help="Number of 'DivideMix' epochs to warm up for"
+    )
+    parser.add_argument(
+        "--clean-threshold",
+        type=float,
+        default=0.5,
+        help="Threshold for 'clean' captions for DivideMix"
+    )
+    parser.add_argument(
         "--elr-weight",
         type=float,
-        default=3.0,
+        default=.3,
         help="Weight assigned to ELR loss when using elr-distill."
     )
     parser.add_argument(
@@ -448,9 +478,21 @@ def parse_args(args):
     parser.add_argument(
         "--elr-teacher-warmup",
         type=int,
-        default=3,
+        default=5,
         help="Number of epochs to warmup ELR teacher."
     )
+    parser.add_argument(
+        "--selective-loss",
+        default=False,
+        action='store_true',
+        help="Use selective loss with the ELR instead of direct teaching.",
+    )
+    parser.add_argument(
+        "--selective-loss-tau",
+        default=0.7,
+        help="Quantile threshold for selective loss."
+    )
+    
     parser.add_argument(
         "--remote-sync",
         type=str,

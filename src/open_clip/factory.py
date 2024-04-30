@@ -13,7 +13,7 @@ from .constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from .model import CLIP, CustomTextCLIP, convert_weights_to_lp, convert_to_custom_text_state_dict,\
     resize_pos_embed, get_cast_dtype, resize_text_pos_embed, set_model_preprocess_cfg
 from .coca_model import CoCa
-from .loss import ClipLoss, DistillClipLoss, CoCaLoss, SigLipLoss, DistillCoCaLoss
+from .loss import ClipLoss, DistillClipLoss, CoCaLoss, SigLipLoss, DistillCoCaLoss, DistillCoCaLossV2
 from .openai import load_openai_model
 from .pretrained import is_pretrained_cfg, get_pretrained_cfg, download_pretrained,\
     list_pretrained_tags_by_model, download_pretrained_from_hf
@@ -331,6 +331,19 @@ def create_loss(args):
             use_horovod=args.horovod,
         )
     elif "coca" in args.model.lower() and args.elr_distill:
+        if args.selective_loss:
+            return DistillCoCaLossV2(
+                caption_loss_weight=args.coca_caption_loss_weight,
+                clip_loss_weight=args.coca_contrastive_loss_weight,
+                elr_weight=args.elr_weight,
+                local_loss=args.local_loss,
+                gather_with_grad=args.gather_with_grad,
+                cache_labels=True,
+                rank=args.rank,
+                world_size=args.world_size,
+                use_horovod=args.horovod,
+                tau=args.selective_loss_tau,
+            )
         return DistillCoCaLoss(
             caption_loss_weight=args.coca_caption_loss_weight,
             clip_loss_weight=args.coca_contrastive_loss_weight,

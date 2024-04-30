@@ -154,7 +154,9 @@ class CoCa(nn.Module):
             text: Optional[torch.Tensor] = None,
             image_latent: Optional[torch.Tensor] = None,
             image_embs: Optional[torch.Tensor] = None,
-            is_training=True
+            is_training=True,
+            dmix_permutation=None,
+            dmix_lam=None,
     ):
         if image_latent is None or image_embs is None:
             image_latent, image_embs = self._encode_image(image)
@@ -168,6 +170,12 @@ class CoCa(nn.Module):
         labels = text[:, 1:]
         if is_training:
             token_embs = token_embs[:, :-1]
+            
+        if dmix_permutation is not None:
+            # Mix the text embeddings and image embeddings
+            token_embs = token_embs * dmix_lam + token_embs[dmix_permutation] * (1 - dmix_lam)
+            image_embs = image_embs * dmix_lam + image_embs[dmix_permutation] * (1 - dmix_lam)
+            
 
         logits = self.text_decoder(image_embs, token_embs)
         return {

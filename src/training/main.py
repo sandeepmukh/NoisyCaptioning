@@ -12,8 +12,7 @@ import numpy as np
 import torch
 from torch import optim
 from torch.cuda.amp import GradScaler
-from torch.optim.swa_utils import get_ema_multi_avg_fn, AveragedModel
-import torchvision.transforms as transforms
+from torch.optim.swa_utils import AveragedModel
 
 try:
     import wandb
@@ -40,8 +39,13 @@ from training.data import get_data
 from training.distributed import is_master, init_distributed_device, broadcast_object
 from training.logger import setup_logging
 from training.params import parse_args
-from training.scheduler import cosine_lr, const_lr, const_lr_cooldown
-from training.train import train_one_epoch, evaluate, update_swa_model, train_and_split_clean_noisy, train_one_epoch_dividemix
+from training.scheduler import (
+    cosine_lr,
+    const_lr,
+    const_lr_cooldown,
+    get_ema_with_warmup,
+)
+from training.train import train_one_epoch, train_one_dividemix_epoch, evaluate
 from training.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 from data import get_list_dataset
@@ -368,9 +372,7 @@ def main(args):
             )
 
     if args.elr_distill:
-        dist_model = AveragedModel(
-            model, multi_avg_fn=get_ema_multi_avg_fn(args.elr_ema_decay)
-        )
+        dist_model = AveragedModel(model, multi_avg_fn=get_ema_with_warmup(args))
 
     # create optimizer and scaler
     optimizer = None
@@ -434,6 +436,10 @@ def main(args):
                 optimizer.load_state_dict(checkpoint["optimizer"])
             if scaler is not None and "scaler" in checkpoint:
                 scaler.load_state_dict(checkpoint["scaler"])
+            if args.elr_distill:
+                dist_model.load_state_dict(
+                    checkpoint["distill_state_dict"]
+                )
             logging.info(
                 f"=> resuming checkpoint '{args.resume}' (epoch {start_epoch})"
             )
@@ -451,6 +457,17 @@ def main(args):
         tokenizer=tokenizer,
     )
     assert len(data), "At least one train or eval dataset must be specified."
+
+    if args.dividemix:
+        ts = args.train_num_samples
+        args.train_num_samples = 20_000
+        data_eval_train = get_data(
+            args,
+            (preprocess_train, preprocess_val),
+            epoch=start_epoch,
+            tokenizer=tokenizer,
+        )
+        args.train_num_samples = ts
 
     # create scheduler if train
     scheduler = None
@@ -540,21 +557,35 @@ def main(args):
         if is_master(args):
             logging.info(f"Start epoch {epoch}")
 
-        if args.dividemix and epoch >= args.warmup_epochs:  # actually start meat of the dividemix algorithm
-            clean1, noisy1 = train_and_split_clean_noisy(model, data, loss, epoch, optimizer, scaler, scheduler, args, tb_writer=writer)
-            clean1, noisy1 = get_list_dataset(args, clean1), get_list_dataset(args, noisy1)
-            clean2, noisy2 = train_and_split_clean_noisy(model2, data, loss, epoch, optimizer2, scaler, scheduler, args, tb_writer=writer)
-            clean2, noisy2 = get_list_dataset(args, clean2), get_list_dataset(args, noisy2)
-
-            model.train()
-            model2.eval()
-            train_one_epoch_dividemix(model, model2, clean2, noisy2, loss, epoch, optimizer, scaler, scheduler, augmentations, args, tb_writer=None)
-
-            model2.train()
-            model.eval()
-            train_one_epoch_dividemix(model2, model, clean1, noisy1, loss, epoch, optimizer2, scaler, scheduler, augmentations, args, tb_writer=None)
+        if not args.dividemix or (
+            args.dividemix and epoch < args.elr_teacher_warmup
+        ):
+            train_one_epoch(
+                model,
+                data,
+                loss,
+                epoch,
+                optimizer,
+                scaler,
+                scheduler,
+                dist_model,
+                args,
+                tb_writer=writer,
+            )
         else:
-            train_one_epoch(model, data, loss, epoch, optimizer, scaler, scheduler, dist_model, args, tb_writer=writer)
+            train_one_dividemix_epoch(
+                model,
+                data,
+                loss,
+                epoch,
+                optimizer,
+                scaler,
+                scheduler,
+                dist_model,
+                args,
+                data_eval_train,
+                tb_writer=writer,
+            )
         completed_epoch = epoch + 1
 
         if any(v in data for v in ("val", "imagenet-val", "imagenet-v2")):
@@ -578,9 +609,11 @@ def main(args):
             if args.elr_distill:
                 # check if ddp
                 if args.distributed:
-                    checkpoint_dict["distill_state_dict"] = dist_model.module.module.state_dict()
-                else: 
-                    checkpoint_dict["distill_state_dict"] = dist_model.module.state_dict()
+                    checkpoint_dict["distill_state_dict"] = dist_model.state_dict()
+                else:
+                    checkpoint_dict["distill_state_dict"] = (
+                        dist_model.module.state_dict()
+                    )
             if scaler is not None:
                 checkpoint_dict["scaler"] = scaler.state_dict()
 
