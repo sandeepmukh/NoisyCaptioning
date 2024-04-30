@@ -1,8 +1,8 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export OMP_NUM_THREADS=12
-torchrun --nproc_per_node 4 --master_port 8888 -m training.main \
+torchrun --nproc_per_node 4 --master_port 8888  -m training.main \
          --train-data="/home/sandeepmukh/imagen-pytorch/data/coyo-700m-webdataset/{00000..00340}.tar" \
-         --train-num-samples 1000000 \
+         --train-num-samples 10000 \
          --val-data="/home/sandeepmukh/imagen-pytorch/data/coyo-700m-webdataset/{00340..00345}.tar" \
          --val-num-samples 10000 \
          --imagenet-val "/home/sandeepmukh/open_clip/data/imagenet/validation" \
