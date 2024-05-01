@@ -1,0 +1,382 @@
++ echo 'Activating conda environment...'
+Activating conda environment...
+++ /nas/ucb/tutrinh/anaconda3/bin/conda shell.bash hook
++ eval 'export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\''
+
+# Copyright (C) 2012 Anaconda, Inc
+# SPDX-License-Identifier: BSD-3-Clause
+__conda_exe() (
+    "$CONDA_EXE" $_CE_M $_CE_CONDA "$@"
+)
+
+__conda_hashr() {
+    if [ -n "${ZSH_VERSION:+x}" ]; then
+        \rehash
+    elif [ -n "${POSH_VERSION:+x}" ]; then
+        :  # pass
+    else
+        \hash -r
+    fi
+}
+
+__conda_activate() {
+    if [ -n "${CONDA_PS1_BACKUP:+x}" ]; then
+        # Handle transition from shell activated with conda <= 4.3 to a subsequent activation
+        # after conda updated to >= 4.4. See issue #6173.
+        PS1="$CONDA_PS1_BACKUP"
+        \unset CONDA_PS1_BACKUP
+    fi
+    \local ask_conda
+    ask_conda="$(PS1="${PS1:-}" __conda_exe shell.posix "$@")" || \return
+    \eval "$ask_conda"
+    __conda_hashr
+}
+
+__conda_reactivate() {
+    \local ask_conda
+    ask_conda="$(PS1="${PS1:-}" __conda_exe shell.posix reactivate)" || \return
+    \eval "$ask_conda"
+    __conda_hashr
+}
+
+conda() {
+    \local cmd="${1-__missing__}"
+    case "$cmd" in
+        activate|deactivate)
+            __conda_activate "$@"
+            ;;
+        install|update|upgrade|remove|uninstall)
+            __conda_exe "$@" || \return
+            __conda_reactivate
+            ;;
+        *)
+            __conda_exe "$@"
+            ;;
+    esac
+}
+
+if [ -z "${CONDA_SHLVL+x}" ]; then
+    \export CONDA_SHLVL=0
+    # In dev-mode CONDA_EXE is python.exe and on Windows
+    # it is in a different relative location to condabin.
+    if [ -n "${_CE_CONDA:+x}" ] && [ -n "${WINDIR+x}" ]; then
+        PATH="$(\dirname "$CONDA_EXE")/condabin${PATH:+":${PATH}"}"
+    else
+        PATH="$(\dirname "$(\dirname "$CONDA_EXE")")/condabin${PATH:+":${PATH}"}"
+    fi
+    \export PATH
+
+    # We'\''re not allowing PS1 to be unbound. It must at least be set.
+    # However, we'\''re not exporting it, which can cause problems when starting a second shell
+    # via a first shell (i.e. starting zsh from bash).
+    if [ -z "${PS1+x}" ]; then
+        PS1=
+    fi
+fi
+
+conda activate base'
+++ export CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ export _CE_M=
+++ _CE_M=
+++ export _CE_CONDA=
+++ _CE_CONDA=
+++ export CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ '[' -z x ']'
+++ conda activate base
+++ local cmd=activate
+++ case "$cmd" in
+++ __conda_activate activate base
+++ '[' -n '' ']'
+++ local ask_conda
++++ PS1=
++++ __conda_exe shell.posix activate base
++++ /nas/ucb/tutrinh/anaconda3/bin/conda shell.posix activate base
+++ ask_conda='PS1='\''(base) '\''
+export PATH='\''/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_SHLVL='\''1'\''
+export CONDA_PROMPT_MODIFIER='\''(base) '\'''
+++ eval 'PS1='\''(base) '\''
+export PATH='\''/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_SHLVL='\''1'\''
+export CONDA_PROMPT_MODIFIER='\''(base) '\'''
++++ PS1='(base) '
++++ export PATH=/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
++++ PATH=/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
++++ export CONDA_SHLVL=1
++++ CONDA_SHLVL=1
++++ export 'CONDA_PROMPT_MODIFIER=(base) '
++++ CONDA_PROMPT_MODIFIER='(base) '
+++ __conda_hashr
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
++ echo 'Activating conda environment..........'
+Activating conda environment..........
++ conda activate chai
++ local cmd=activate
++ case "$cmd" in
++ __conda_activate activate chai
++ '[' -n '' ']'
++ local ask_conda
+++ PS1='(base) '
+++ __conda_exe shell.posix activate chai
+++ /nas/ucb/tutrinh/anaconda3/bin/conda shell.posix activate chai
++ ask_conda='PS1='\''(chai) '\''
+export PATH='\''/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_PREFIX='\''/nas/ucb/tutrinh/anaconda3/envs/chai'\''
+export CONDA_SHLVL='\''2'\''
+export CONDA_DEFAULT_ENV='\''chai'\''
+export CONDA_PROMPT_MODIFIER='\''(chai) '\''
+export CONDA_PREFIX_1='\''/nas/ucb/tutrinh/anaconda3'\''
+export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\'''
++ eval 'PS1='\''(chai) '\''
+export PATH='\''/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin'\''
+export CONDA_PREFIX='\''/nas/ucb/tutrinh/anaconda3/envs/chai'\''
+export CONDA_SHLVL='\''2'\''
+export CONDA_DEFAULT_ENV='\''chai'\''
+export CONDA_PROMPT_MODIFIER='\''(chai) '\''
+export CONDA_PREFIX_1='\''/nas/ucb/tutrinh/anaconda3'\''
+export CONDA_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/conda'\''
+export _CE_M='\'''\''
+export _CE_CONDA='\'''\''
+export CONDA_PYTHON_EXE='\''/nas/ucb/tutrinh/anaconda3/bin/python'\'''
+++ PS1='(chai) '
+++ export PATH=/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
+++ PATH=/home/tutrinh/.local/bin:/nas/ucb/tutrinh/anaconda3/envs/chai/bin:/nas/ucb/tutrinh/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/home/tutrinh/.local/bin
+++ export CONDA_PREFIX=/nas/ucb/tutrinh/anaconda3/envs/chai
+++ CONDA_PREFIX=/nas/ucb/tutrinh/anaconda3/envs/chai
+++ export CONDA_SHLVL=2
+++ CONDA_SHLVL=2
+++ export CONDA_DEFAULT_ENV=chai
+++ CONDA_DEFAULT_ENV=chai
+++ export 'CONDA_PROMPT_MODIFIER=(chai) '
+++ CONDA_PROMPT_MODIFIER='(chai) '
+++ export CONDA_PREFIX_1=/nas/ucb/tutrinh/anaconda3
+++ CONDA_PREFIX_1=/nas/ucb/tutrinh/anaconda3
+++ export CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ CONDA_EXE=/nas/ucb/tutrinh/anaconda3/bin/conda
+++ export _CE_M=
+++ _CE_M=
+++ export _CE_CONDA=
+++ _CE_CONDA=
+++ export CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
+++ CONDA_PYTHON_EXE=/nas/ucb/tutrinh/anaconda3/bin/python
++ __conda_hashr
++ '[' -n '' ']'
++ '[' -n '' ']'
++ hash -r
++ echo 'Activated!'
+Activated!
++ echo 'Logging into wandb...'
+Logging into wandb...
++ wandb login 4a6017fc91542ffdb82ee3d6213e9cf0c11fd892
+wandb: Appending key for api.wandb.ai to your netrc file: /home/tutrinh/.netrc
++ echo 'Logged into wandb!'
+Logged into wandb!
++ export CUDA_LAUNCH_BLOCKING=1
++ CUDA_LAUNCH_BLOCKING=1
++ export MASTER_PORT=8080
++ MASTER_PORT=8080
++ echo 'Set CUDA environment!'
+Set CUDA environment!
+++ scontrol show hostnames vae.ist.berkeley.edu
+++ head -n 1
++ master_addr=vae.ist.berkeley.edu
++ export MASTER_ADDR=vae.ist.berkeley.edu
++ MASTER_ADDR=vae.ist.berkeley.edu
++ echo 'Set master addr to vae.ist.berkeley.edu!'
+Set master addr to vae.ist.berkeley.edu!
++ cd /nas/ucb/tutrinh/backup/NoisyCaptioning
++ export PYTHONPATH=:/nas/ucb/tutrinh/backup/NoisyCaptioning/src
++ PYTHONPATH=:/nas/ucb/tutrinh/backup/NoisyCaptioning/src
++ echo 'Set directory!'
+Set directory!
++ echo 'STARTING TRAINING........'
+STARTING TRAINING........
++ srun --cpu_bind=v --accel-bind=gn python -u src/training/main.py --save-frequency 5 --resume /nas/ucb/tutrinh/backup/NoisyCaptioning/logs/coca_cc3m_elr_17/checkpoints/epoch_45.pt '--train-data=/nas/ucb/tutrinh/cc3m/cc3m/{00000..00331}.tar' --train-num-samples 1000000 '--val-data=/nas/ucb/tutrinh/cc3m/cc3m_val/{00000..00001}.tar' --val-num-samples 10000 --imagenet-val /nas/ucb/tutrinh/imagenet/validation --dataset-type webdataset --batch-size 128 --warmup 2000 --epochs 100 --workers 8 --lr 5e-4 --precision amp --elr-distill --model coca_ViT-B-32 --name coca_cc3m_elr_17 --report-to tensorboard
+Error. Experiment already exists. Use --name {} to specify a new experiment.
+2024-04-30,01:15:44 | INFO | Running in distributed mode with multiple processes. Device: cuda:1.Process (global: 1, local 1), total 4.
+2024-04-30,01:15:44 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-30,01:15:44 | INFO | Running in distributed mode with multiple processes. Device: cuda:3.Process (global: 3, local 3), total 4.
+2024-04-30,01:15:44 | INFO | Loaded coca_ViT-B-32 model config.
+2024-04-30,01:15:44 | INFO | Running in distributed mode with multiple processes. Device: cuda:2.Process (global: 2, local 2), total 4.
+2024-04-30,01:15:44 | INFO | Loaded coca_ViT-B-32 model config.
+Traceback (most recent call last):
+  File "/nas/ucb/tutrinh/backup/NoisyCaptioning/src/training/main.py", line 613, in <module>
+    main(sys.argv[1:])
+  File "/nas/ucb/tutrinh/backup/NoisyCaptioning/src/training/main.py", line 337, in main
+    model = torch.nn.parallel.DistributedDataParallel(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 798, in __init__
+    _verify_param_shape_across_processes(self.process_group, parameters)
+  File "/nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/distributed/utils.py", line 263, in _verify_param_shape_across_processes
+    return dist._verify_params_across_processes(process_group, tensors, logger)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.distributed.DistBackendError: [3] is setting up NCCL communicator and retrieving ncclUniqueId from [0] via c10d key-value store by key '0', but store->get('0') got error: Connection reset by peer
+Exception raised from recvBytes at ../torch/csrc/distributed/c10d/Utils.hpp:670 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x1470f6794d87 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x589518e (0x14712e74b18e in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::doWait(c10::ArrayRef<std::string>, std::chrono::duration<long, std::ratio<1l, 1000l> >) + 0x360 (0x14712e7459a0 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::TCPStore::doGet(std::string const&) + 0x32 (0x14712e745ce2 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: c10d::TCPStore::get(std::string const&) + 0xa1 (0x14712e746b11 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14712e6fbf81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14712e6fbf81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14712e6fbf81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #8: c10d::ProcessGroupNCCL::broadcastUniqueNCCLID(ncclUniqueId*, bool, std::string const&, int) + 0xa9 (0x1470f793cc69 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #9: c10d::ProcessGroupNCCL::getNCCLComm(std::string const&, std::vector<c10::Device, std::allocator<c10::Device> > const&, c10d::OpType, int, bool) + 0x22b (0x1470f7943c5b in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #10: c10d::ProcessGroupNCCL::allgather(std::vector<std::vector<at::Tensor, std::allocator<at::Tensor> >, std::allocator<std::vector<at::Tensor, std::allocator<at::Tensor> > > >&, std::vector<at::Tensor, std::allocator<at::Tensor> >&, c10d::AllgatherOptions const&) + 0xb5c (0x1470f795a05c in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #11: <unknown function> + 0x583a31d (0x14712e6f031d in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #12: <unknown function> + 0x5844218 (0x14712e6fa218 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #13: <unknown function> + 0x4e893cc (0x14712dd3f3cc in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #14: <unknown function> + 0x1a08a88 (0x14712a8bea88 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #15: <unknown function> + 0x584ba33 (0x14712e701a33 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #16: <unknown function> + 0x5856e1f (0x14712e70ce1f in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #17: c10d::verify_params_across_processes(c10::intrusive_ptr<c10d::ProcessGroup, c10::detail::intrusive_target_default_null_type<c10d::ProcessGroup> > const&, std::vector<at::Tensor, std::allocator<at::Tensor> > const&, std::optional<std::weak_ptr<c10d::Logger> > const&) + 0x26f (0x14712e77348f in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #18: <unknown function> + 0xc603c1 (0x147140f743c1 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_python.so)
+frame #19: <unknown function> + 0x416234 (0x14714072a234 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_python.so)
+frame #20: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x525f07]
+frame #21: _PyObject_MakeTpCall + 0x254 (0x502d54 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #22: _PyEval_EvalFrameDefault + 0x755 (0x50f025 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #23: _PyFunction_Vectorcall + 0x173 (0x535103 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #24: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x53ca72]
+frame #25: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x50327c]
+frame #26: PyObject_Call + 0x20c (0x53f2fc in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #27: _PyEval_EvalFrameDefault + 0x448a (0x512d5a in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #28: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5c82ce]
+frame #29: PyEval_EvalCode + 0x9f (0x5c79cf in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #30: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5e8807]
+frame #31: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5e4e40]
+frame #32: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5f9132]
+frame #33: _PyRun_SimpleFileObject + 0x19f (0x5f871f in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #34: _PyRun_AnyFileObject + 0x43 (0x5f8473 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #35: Py_RunMain + 0x2ee (0x5f2fee in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #36: Py_BytesMain + 0x39 (0x5b6e19 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #37: __libc_start_main + 0xf3 (0x14715515a083 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #38: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5b6c6f]
+. This may indicate a possible application crash on rank 0 or a network set up issue.
+[rank3]:[2024-04-30 01:15:45,954] torch._dynamo.utils: [INFO] TorchDynamo compilation metrics:
+[rank3]:[2024-04-30 01:15:45,954] torch._dynamo.utils: [INFO] Function, Runtimes (s)
+Traceback (most recent call last):
+  File "/nas/ucb/tutrinh/backup/NoisyCaptioning/src/training/main.py", line 613, in <module>
+    main(sys.argv[1:])
+  File "/nas/ucb/tutrinh/backup/NoisyCaptioning/src/training/main.py", line 337, in main
+    model = torch.nn.parallel.DistributedDataParallel(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 798, in __init__
+    _verify_param_shape_across_processes(self.process_group, parameters)
+  File "/nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/distributed/utils.py", line 263, in _verify_param_shape_across_processes
+    return dist._verify_params_across_processes(process_group, tensors, logger)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.distributed.DistBackendError: [1] is setting up NCCL communicator and retrieving ncclUniqueId from [0] via c10d key-value store by key '0', but store->get('0') got error: Connection reset by peer
+Exception raised from recvBytes at ../torch/csrc/distributed/c10d/Utils.hpp:670 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x1456f2ea5d87 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x589518e (0x14572ae5c18e in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::doWait(c10::ArrayRef<std::string>, std::chrono::duration<long, std::ratio<1l, 1000l> >) + 0x360 (0x14572ae569a0 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::TCPStore::doGet(std::string const&) + 0x32 (0x14572ae56ce2 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: c10d::TCPStore::get(std::string const&) + 0xa1 (0x14572ae57b11 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14572ae0cf81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14572ae0cf81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14572ae0cf81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #8: c10d::ProcessGroupNCCL::broadcastUniqueNCCLID(ncclUniqueId*, bool, std::string const&, int) + 0xa9 (0x1456f404dc69 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #9: c10d::ProcessGroupNCCL::getNCCLComm(std::string const&, std::vector<c10::Device, std::allocator<c10::Device> > const&, c10d::OpType, int, bool) + 0x22b (0x1456f4054c5b in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #10: c10d::ProcessGroupNCCL::allgather(std::vector<std::vector<at::Tensor, std::allocator<at::Tensor> >, std::allocator<std::vector<at::Tensor, std::allocator<at::Tensor> > > >&, std::vector<at::Tensor, std::allocator<at::Tensor> >&, c10d::AllgatherOptions const&) + 0xb5c (0x1456f406b05c in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #11: <unknown function> + 0x583a31d (0x14572ae0131d in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #12: <unknown function> + 0x5844218 (0x14572ae0b218 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #13: <unknown function> + 0x4e893cc (0x14572a4503cc in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #14: <unknown function> + 0x1a08a88 (0x145726fcfa88 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #15: <unknown function> + 0x584ba33 (0x14572ae12a33 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #16: <unknown function> + 0x5856e1f (0x14572ae1de1f in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #17: c10d::verify_params_across_processes(c10::intrusive_ptr<c10d::ProcessGroup, c10::detail::intrusive_target_default_null_type<c10d::ProcessGroup> > const&, std::vector<at::Tensor, std::allocator<at::Tensor> > const&, std::optional<std::weak_ptr<c10d::Logger> > const&) + 0x26f (0x14572ae8448f in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #18: <unknown function> + 0xc603c1 (0x14573d6853c1 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_python.so)
+frame #19: <unknown function> + 0x416234 (0x14573ce3b234 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_python.so)
+frame #20: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x525f07]
+frame #21: _PyObject_MakeTpCall + 0x254 (0x502d54 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #22: _PyEval_EvalFrameDefault + 0x755 (0x50f025 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #23: _PyFunction_Vectorcall + 0x173 (0x535103 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #24: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x53ca72]
+frame #25: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x50327c]
+frame #26: PyObject_Call + 0x20c (0x53f2fc in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #27: _PyEval_EvalFrameDefault + 0x448a (0x512d5a in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #28: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5c82ce]
+frame #29: PyEval_EvalCode + 0x9f (0x5c79cf in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #30: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5e8807]
+frame #31: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5e4e40]
+frame #32: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5f9132]
+frame #33: _PyRun_SimpleFileObject + 0x19f (0x5f871f in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #34: _PyRun_AnyFileObject + 0x43 (0x5f8473 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #35: Py_RunMain + 0x2ee (0x5f2fee in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #36: Py_BytesMain + 0x39 (0x5b6e19 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #37: __libc_start_main + 0xf3 (0x14575186b083 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #38: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5b6c6f]
+. This may indicate a possible application crash on rank 0 or a network set up issue.
+[rank1]:[2024-04-30 01:15:45,959] torch._dynamo.utils: [INFO] TorchDynamo compilation metrics:
+[rank1]:[2024-04-30 01:15:45,959] torch._dynamo.utils: [INFO] Function, Runtimes (s)
+Traceback (most recent call last):
+  File "/nas/ucb/tutrinh/backup/NoisyCaptioning/src/training/main.py", line 613, in <module>
+    main(sys.argv[1:])
+  File "/nas/ucb/tutrinh/backup/NoisyCaptioning/src/training/main.py", line 337, in main
+    model = torch.nn.parallel.DistributedDataParallel(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/nn/parallel/distributed.py", line 798, in __init__
+    _verify_param_shape_across_processes(self.process_group, parameters)
+  File "/nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/distributed/utils.py", line 263, in _verify_param_shape_across_processes
+    return dist._verify_params_across_processes(process_group, tensors, logger)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.distributed.DistBackendError: [2] is setting up NCCL communicator and retrieving ncclUniqueId from [0] via c10d key-value store by key '0', but store->get('0') got error: Connection reset by peer
+Exception raised from recvBytes at ../torch/csrc/distributed/c10d/Utils.hpp:670 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x1457d578fd87 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x589518e (0x14580d74618e in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #2: c10d::TCPStore::doWait(c10::ArrayRef<std::string>, std::chrono::duration<long, std::ratio<1l, 1000l> >) + 0x360 (0x14580d7409a0 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #3: c10d::TCPStore::doGet(std::string const&) + 0x32 (0x14580d740ce2 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: c10d::TCPStore::get(std::string const&) + 0xa1 (0x14580d741b11 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14580d6f6f81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14580d6f6f81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::PrefixStore::get(std::string const&) + 0x31 (0x14580d6f6f81 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #8: c10d::ProcessGroupNCCL::broadcastUniqueNCCLID(ncclUniqueId*, bool, std::string const&, int) + 0xa9 (0x1457d6937c69 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #9: c10d::ProcessGroupNCCL::getNCCLComm(std::string const&, std::vector<c10::Device, std::allocator<c10::Device> > const&, c10d::OpType, int, bool) + 0x22b (0x1457d693ec5b in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #10: c10d::ProcessGroupNCCL::allgather(std::vector<std::vector<at::Tensor, std::allocator<at::Tensor> >, std::allocator<std::vector<at::Tensor, std::allocator<at::Tensor> > > >&, std::vector<at::Tensor, std::allocator<at::Tensor> >&, c10d::AllgatherOptions const&) + 0xb5c (0x1457d695505c in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cuda.so)
+frame #11: <unknown function> + 0x583a31d (0x14580d6eb31d in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #12: <unknown function> + 0x5844218 (0x14580d6f5218 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #13: <unknown function> + 0x4e893cc (0x14580cd3a3cc in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #14: <unknown function> + 0x1a08a88 (0x1458098b9a88 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #15: <unknown function> + 0x584ba33 (0x14580d6fca33 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #16: <unknown function> + 0x5856e1f (0x14580d707e1f in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #17: c10d::verify_params_across_processes(c10::intrusive_ptr<c10d::ProcessGroup, c10::detail::intrusive_target_default_null_type<c10d::ProcessGroup> > const&, std::vector<at::Tensor, std::allocator<at::Tensor> > const&, std::optional<std::weak_ptr<c10d::Logger> > const&) + 0x26f (0x14580d76e48f in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_cpu.so)
+frame #18: <unknown function> + 0xc603c1 (0x14581ff6f3c1 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_python.so)
+frame #19: <unknown function> + 0x416234 (0x14581f725234 in /nas/ucb/tutrinh/anaconda3/envs/chai/lib/python3.11/site-packages/torch/lib/libtorch_python.so)
+frame #20: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x525f07]
+frame #21: _PyObject_MakeTpCall + 0x254 (0x502d54 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #22: _PyEval_EvalFrameDefault + 0x755 (0x50f025 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #23: _PyFunction_Vectorcall + 0x173 (0x535103 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #24: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x53ca72]
+frame #25: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x50327c]
+frame #26: PyObject_Call + 0x20c (0x53f2fc in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #27: _PyEval_EvalFrameDefault + 0x448a (0x512d5a in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #28: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5c82ce]
+frame #29: PyEval_EvalCode + 0x9f (0x5c79cf in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #30: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5e8807]
+frame #31: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5e4e40]
+frame #32: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5f9132]
+frame #33: _PyRun_SimpleFileObject + 0x19f (0x5f871f in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #34: _PyRun_AnyFileObject + 0x43 (0x5f8473 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #35: Py_RunMain + 0x2ee (0x5f2fee in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #36: Py_BytesMain + 0x39 (0x5b6e19 in /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python)
+frame #37: __libc_start_main + 0xf3 (0x145834155083 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #38: /nas/ucb/tutrinh/anaconda3/envs/chai/bin/python() [0x5b6c6f]
+. This may indicate a possible application crash on rank 0 or a network set up issue.
+[rank2]:[2024-04-30 01:15:45,963] torch._dynamo.utils: [INFO] TorchDynamo compilation metrics:
+[rank2]:[2024-04-30 01:15:45,963] torch._dynamo.utils: [INFO] Function, Runtimes (s)
+srun: error: vae.ist.berkeley.edu: tasks 1,3: Exited with exit code 1
+srun: error: vae.ist.berkeley.edu: task 2: Exited with exit code 1
++ --gather-with-grad --local-loss --torchcompile
+/var/spool/slurm/slurmd/job239168/slurm_script: line 57: --gather-with-grad: command not found
++ echo 'TRAINING STARTED..........'
+TRAINING STARTED..........
