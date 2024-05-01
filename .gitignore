@@ -4,6 +4,8 @@ models/
 features/
 results/
 analysis/data/
+analysis/eval_logs/
+analysis/checkpoints/
 
 tests/data/
 *.pt
