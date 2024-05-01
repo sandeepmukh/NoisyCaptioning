@@ -43,6 +43,12 @@ def parse_args(args):
         help="Number of samples used for eval"
     )
     parser.add_argument(
+        "--eval-save-samples-dir",
+        type=str,
+        default=None,
+        help="Location to save evaluation samples (images and captiosn)"
+    )
+    parser.add_argument(
         "--eval-checkpoint-dir",
         type=str,
         help="Model checkpoints to be used"

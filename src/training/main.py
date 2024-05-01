@@ -13,6 +13,8 @@ import torch
 from torch import optim
 from torch.cuda.amp import GradScaler
 from torch.optim.swa_utils import AveragedModel
+from torchvision.transforms.functional as TF
+from PIL import Image
 
 try:
     import wandb
@@ -446,6 +448,23 @@ def main(args):
                     data_count += 1
             else:
                 break
+        if args.eval_save_samples_dir:
+            for i, (img, text) in enumerate(data_subset):
+                if isinstance(img, torch.Tensor):
+                    img = TF.to_pil_image(img)
+                elif isinstance(img, bytes):
+                    img = Image.open(io.BytesIO(img))
+                img_path = os.path.join(args.eval_save_samples_dir, f"img_{i}.jpg")
+                img.save(img_path)
+                if isinstance(text, torch.Tensor):
+                    caption = tokenizer.decode(text.tolist())
+                elif isinstance(text, str):
+                    caption = text
+                else:
+                    raise ValueError("Weird text type:", type(text))
+                cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
+                with open(cap_path, "w") as f:
+                    f.write(caption)
 
     if args.dividemix:
         ts = args.train_num_samples

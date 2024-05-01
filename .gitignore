@@ -6,6 +6,7 @@ results/
 analysis/data/
 analysis/eval_logs/
 analysis/checkpoints/
+analysis/eval_samples/
 
 tests/data/
 *.pt
