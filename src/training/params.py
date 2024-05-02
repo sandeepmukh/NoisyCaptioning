@@ -46,17 +46,18 @@ def parse_args(args):
         "--eval-save-samples-dir",
         type=str,
         default=None,
-        help="Location to save evaluation samples (images and captiosn)"
+        help="Location to save evaluation samples (images and captions)"
     )
     parser.add_argument(
         "--eval-checkpoint-dir",
         type=str,
+        default="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/checkpoints/baseline",
         help="Model checkpoints to be used"
     )
     parser.add_argument(
         "--eval-checkpoint-start",
         type=int,
-        default=5,
+        default=10,
         help="Start index of checkpoint file"
     )
     parser.add_argument(
@@ -474,12 +475,6 @@ def parse_args(args):
         help="Weight assigned to contrastive loss when training CoCa."
     )
     parser.add_argument(
-        "--dividemix",
-        default=False,
-        action="store_true",
-        help="Use DivideMix for training."
-    )
-    parser.add_argument(
         "--T",
         type=float,
         default=2.0,
@@ -496,12 +491,6 @@ def parse_args(args):
         type=int,
         default=0,
         help="Number of 'DivideMix' epochs to warm up for"
-    )
-    parser.add_argument(
-        "--clean-threshold",
-        type=float,
-        default=0.5,
-        help="Threshold for 'clean' captions for DivideMix"
     )
     parser.add_argument(
         "--elr-weight",
