@@ -13,7 +13,7 @@ import torch
 from torch import optim
 from torch.cuda.amp import GradScaler
 from torch.optim.swa_utils import AveragedModel
-from torchvision.transforms.functional as TF
+import torchvision.transforms.functional as TF
 from PIL import Image
 
 try:
