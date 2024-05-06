@@ -866,7 +866,6 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         all_predictions, all_per_position_losses = [], []
         all_per_token_losses = {}
         token_label_counts = {}
-        label_attn_regions = []
         pred_attn_regions = []
 
         with torch.no_grad():
@@ -905,9 +904,7 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if attn_scores is not None:
-                        label_attn = process_attention_scores(attn_scores, decoded_label_tokens, img)
                         pred_attn = process_attention_scores(attn_scores, decoded_pred_tokens, img)
-                        label_attn_regions.append(label_attn)
                         pred_attn_regions.append(pred_attn)
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
@@ -931,7 +928,6 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         metrics["all_predictions"] = all_predictions
         metrics["all_per_position_losses"] = all_per_position_losses
         metrics["all_per_token_losses"] = all_per_token_losses
-        metrics["all_label_attentions"] = label_attn_regions
         metrics["all_pred_attentions"] = pred_attn_regions
         
         sub_metrics["all_image_features"] = all_image_features
