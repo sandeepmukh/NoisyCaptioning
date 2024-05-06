@@ -131,7 +131,7 @@ def main(args):
         os.makedirs(log_base_path, exist_ok=True)
         log_filename = f"out-{args.rank}" if args.log_local else "out.log"
         args.log_path = os.path.join(log_base_path, log_filename)
-        if os.path.exists(args.log_path) and not resume_latest:
+        if os.path.exists(args.log_path) and not resume_latest and not args.eval:
             print(
                 "Error. Experiment already exists. Use --name {} to specify a new experiment."
             )
@@ -276,7 +276,9 @@ def main(args):
         **model_kwargs,
     )
     if args.eval:
-        checkpoint_files = [f"{args.eval_checkpoint_dir}/epoch{i}.pt" for i in range(args.eval_checkpoint_start, args.eval_checkpoint_end + 1, args.eval_checkpoint_interval)]
+        checkpoint_files = [f"{args.eval_checkpoint_dir}/epoch_{i}.pt" for i in range(args.eval_checkpoint_start, args.eval_checkpoint_end + 1, args.eval_checkpoint_interval)]
+        print("USING CHECKPOINT FILES:")
+        print(checkpoint_files)
 
     if args.distill:
         # FIXME: currently assumes the model you're distilling from has the same tokenizer & transforms.
@@ -444,27 +446,39 @@ def main(args):
         for i, (img, text) in enumerate(data["val"].dataloader):
             if data_count < args.eval_samples:
                 if i % 100 == 0:
-                    data_subset.append((img, text))
-                    data_count += 1
+                    data_subset.extend(list(zip([image for image in img], [caption for caption in text])))
+                    data_count = len(data_subset)
             else:
                 break
-        if args.eval_save_samples_dir:
-            for i, (img, text) in enumerate(data_subset):
-                if isinstance(img, torch.Tensor):
-                    img = TF.to_pil_image(img)
-                elif isinstance(img, bytes):
-                    img = Image.open(io.BytesIO(img))
-                img_path = os.path.join(args.eval_save_samples_dir, f"img_{i}.jpg")
-                img.save(img_path)
-                if isinstance(text, torch.Tensor):
-                    caption = tokenizer.decode(text.tolist())
-                elif isinstance(text, str):
-                    caption = text
+    if args.eval_save_samples_dir:
+        data_subset_save = []
+        data_save = get_data(args, (None, None), epoch=start_epoch, tokenizer=tokenizer)
+        data_count = 0
+        for i, (img, text) in enumerate(data_save["val"].dataloader):
+            if data_count < args.eval_samples:
+                if i % 100 == 0:
+                    data_subset_save.extend(list(zip([image for image in img], [caption for caption in text])))
+                    data_count = len(data_subset_save)
                 else:
-                    raise ValueError("Weird text type:", type(text))
-                cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
-                with open(cap_path, "w") as f:
-                    f.write(caption)
+                    break
+        del data_save
+        for i, (img, text) in enumerate(data_subset_save):
+            if isinstance(img, torch.Tensor):
+                img = TF.to_pil_image(img)
+            elif isinstance(img, bytes):
+                img = Image.open(io.BytesIO(img))
+            img_path = os.path.join(args.eval_save_samples_dir, f"img_{i}.jpg")
+            img.save(img_path)
+            if isinstance(text, torch.Tensor):
+                caption = tokenizer.decode(text.tolist())
+            elif isinstance(text, str):
+                caption = text
+            else:
+                raise ValueError("Weird text type:", type(text))
+            cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
+            with open(cap_path, "w") as f:
+                f.write(caption)
+        del data_subset_save
 
     if args.dividemix:
         ts = args.train_num_samples
@@ -549,7 +563,10 @@ def main(args):
         if args.use_bnb_linear is not None:
             from open_clip.utils import convert_int8_model_to_inference_mode
             convert_int8_model_to_inference_mode(model)
-        evaluate_subset(model, checkpoint_files, data_subset, args, tb_writer=writer, tokenizer=tokenizer)
+        print("Right before entering evaluation function")
+        print("Checkpoint files:", checkpoint_files)
+        print("Data subset:", len(data_subset))
+        evaluate_subset(model, checkpoint_files, data_subset, args, tokenizer=tokenizer)
         return
     
     if "train" not in data:

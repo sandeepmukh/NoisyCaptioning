@@ -3,10 +3,10 @@ wandb/
 models/
 features/
 results/
-analysis/data/
 analysis/eval_logs/
 analysis/checkpoints/
 analysis/eval_samples/
+slurm/
 
 tests/data/
 *.pt

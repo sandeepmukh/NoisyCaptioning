@@ -834,6 +834,8 @@ def evaluate(model, data, epoch, args, tb_writer=None, tokenizer=None):
 
 
 def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
+    print("This function is actually entered")
+    print("How much data is passed in?", len(data))
     device = torch.device(args.device)
     autocast = get_autocast(args.precision)
     input_dtype = get_input_dtype(args.precision)
@@ -841,12 +843,19 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
     for checkpoint in checkpoints:
         checkpoint_dict = torch.load(checkpoint)
         saved_epoch = checkpoint_dict["epoch"]
-        model.load_state_dict(checkpoint_dict["model_state_dict"])
+        try:
+            model.load_state_dict(checkpoint_dict["state_dict"])
+        except RuntimeError:  # smth about parallel modules prepending "module" to every key
+            old_state_dict = checkpoint_dict["state_dict"]
+            state_dict = {key.replace("module.", ""): old_state_dict[key] for key in old_state_dict}
+            model.load_state_dict(state_dict)
         model.eval()
         metrics = {}
+        sub_metrics = {}
         if not is_master(args):
             return metrics
         metrics["saved_epoch"] = saved_epoch
+        sub_metrics["saved_epoch"] = saved_epoch
 
         # NOTE: no zero shot analysis yet for presentation
         # zero_shot_metrics = zero_shot_eval(model, data, epoch, args, tokenizer=tokenizer)
@@ -856,6 +865,9 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         all_loss, all_gen_loss = [], []
         all_labels, all_logits, all_logit_scales = [], [], []
         all_logits_per_image, all_logits_per_text = [], []
+        all_predictions, all_per_position_losses = [], []
+        all_per_token_losses = {}
+        token_label_counts = {}
         with torch.no_grad():
             for i, (img, text) in enumerate(data):
                 img = img.to(device=device, dtype=input_dtype, non_blocking=True).unsqueeze(0)
@@ -870,36 +882,62 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                     logits_per_image = logit_scale * image_features @ text_features.t()
                     logits_per_text = logits_per_image.t()
 
-                    all_image_features.append(image_features.cpu())
-                    all_text_features.append(text_features.cpu())
-                    all_logits.append(model_out["logits"])
-                    all_logit_scales.append(logit_scale)
-                    all_labels.append(model_out["labels"])
-                    all_logits_per_image.append(logits_per_image)
-                    all_logits_per_text.append(logits_per_text)
+                    all_image_features.append(image_features.cpu().tolist()[0])
+                    all_text_features.append(text_features.cpu().tolist()[0])
+                    all_logits.append(model_out["logits"].cpu().tolist()[0])
+                    all_logit_scales.append(logit_scale.item())
+                    all_labels.append(" ".join([tokenizer.decode([token.item()]) for token in model_out["labels"][0]]))
+                    all_logits_per_image.append(logits_per_image.cpu().tolist()[0])
+                    all_logits_per_text.append(logits_per_text.cpu().tolist()[0])
 
                     batch_size = img.shape[0]
                     labels = torch.arange(batch_size, device=device).long()
                     total_loss = (F.cross_entropy(logits_per_image, labels) + F.cross_entropy(logits_per_text, labels)) / 2
                     gen_loss = maybe_compute_generative_loss(model_out)
+
+                    logits = model_out["logits"]
+                    label_pred = F.softmax(logits, dim = -1).argmax(dim = -1)
+                    label_pred = " ".join([tokenizer.decode([token.item()]) for token in label_pred[0]])
+                    all_predictions.append(label_pred)
+
+                    position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
+                    all_per_position_losses.append(position_losses.cpu().tolist())
+
+                    for j, label_token in enumerate(model_out["labels"][0]):
+                        lt = tokenizer.decode([label_token.item()])
+                        if lt not in all_per_token_losses:
+                            all_per_token_losses[lt] = 0
+                            token_label_counts[lt] = 0
+                        token_label_counts[lt] += 1
+                        all_per_token_losses[lt] = (all_per_token_losses[lt] + position_losses[j].item()) / token_label_counts[lt]
                 
-                all_loss.append(total_loss * batch_size)
+                all_loss.append((total_loss * batch_size).item())
                 if gen_loss is not None:
-                    all_gen_loss.append(gen_loss * batch_size)
+                    all_gen_loss.append((gen_loss * batch_size).item())
         
-        metrics["all_image_features"] = all_image_features
-        metrics["all_text_features"] = all_text_features
+        sub_metrics["all_image_features"] = all_image_features
+        sub_metrics["all_text_features"] = all_text_features
         metrics["all_loss"] = all_loss
         metrics["all_gen_loss"] = all_gen_loss
         metrics["all_labels"] = all_labels
         metrics["all_logits"] = all_logits
         metrics["all_logit_scales"] = all_logit_scales
-        metrics["all_logits_per_image"] = all_logits_per_image
-        metrics["all_logits_per_text"] = all_logits_per_text
+        sub_metrics["all_logits_per_image"] = all_logits_per_image
+        sub_metrics["all_logits_per_text"] = all_logits_per_text
+        metrics["all_predictions"] = all_predictions
+        metrics["all_per_position_losses"] = all_per_position_losses
+        metrics["all_per_token_losses"] = all_per_token_losses
+        sub_metrics["token_label_counts"] = token_label_counts
 
-        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}.jsonl"), "w") as f:
+        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_metrics.json"), "w") as f:
             f.write(json.dumps(metrics))
             f.write("\n")
+        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_submetrics.json"), "w") as f:
+            f.write(json.dumps(sub_metrics))
+            f.write("\n")
+        print("Done with checkpoint", saved_epoch)
+    
+    print("DONE WITH EVALUATION YIPPEEEEE")
     
     # return metrics
 
