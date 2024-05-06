@@ -195,6 +195,7 @@ class ResidualAttentionBlock(nn.Module):
             act_layer: Callable = nn.GELU,
             norm_layer: Callable = LayerNorm,
             is_cross_attention: bool = False,
+            need_weights: bool = False,
     ):
         super().__init__()
 
@@ -213,6 +214,8 @@ class ResidualAttentionBlock(nn.Module):
         ]))
         self.ls_2 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
 
+        self.need_weights = need_weights
+
     def attention(
             self,
             q_x: torch.Tensor,
@@ -224,9 +227,12 @@ class ResidualAttentionBlock(nn.Module):
         v_x = v_x if v_x is not None else q_x
 
         attn_mask = attn_mask.to(q_x.dtype) if attn_mask is not None else None
-        return self.attn(
-            q_x, k_x, v_x, need_weights=False, attn_mask=attn_mask
-        )[0]
+        attn_output = self.attn(
+            q_x, k_x, v_x, need_weights=self.need_weights, attn_mask=attn_mask
+        )
+        if self.need_weights:
+            return attn_output
+        return attn_output[0]
 
     def forward(
             self,
@@ -238,9 +244,15 @@ class ResidualAttentionBlock(nn.Module):
         k_x = self.ln_1_kv(k_x) if hasattr(self, "ln_1_kv") and k_x is not None else None
         v_x = self.ln_1_kv(v_x) if hasattr(self, "ln_1_kv") and v_x is not None else None
 
-        x = q_x + self.ls_1(self.attention(q_x=self.ln_1(q_x), k_x=k_x, v_x=v_x, attn_mask=attn_mask))
-        x = x + self.ls_2(self.mlp(self.ln_2(x)))
-        return x
+        if self.need_weights:
+            attn_output, attn_scores = self.attention(q_x = self.ln_1(q_x), k_x = k_x, v_x = v_x, attn_mask = attn_mask)
+            x = q_x + self.ls_1(attn_output)
+            x = x + self.ls_2(self.mlp(self.ln_2(x)))
+            return x, attn_scores
+        else:
+            x = q_x + self.ls_1(self.attention(q_x=self.ln_1(q_x), k_x=k_x, v_x=v_x, attn_mask=attn_mask))
+            x = x + self.ls_2(self.mlp(self.ln_2(x)))
+            return x
 
 
 class CustomResidualAttentionBlock(nn.Module):
@@ -720,6 +732,7 @@ class MultimodalTransformer(Transformer):
             act_layer: Callable = nn.GELU,
             norm_layer: Callable = LayerNorm,
             output_dim: int = 512,
+            need_attn_weights: bool = False
     ):
 
         super().__init__(
@@ -732,6 +745,7 @@ class MultimodalTransformer(Transformer):
             norm_layer=norm_layer,
         )
         self.context_length = context_length
+        self.need_attn_weights = need_attn_weights
         self.cross_attn = nn.ModuleList([
             ResidualAttentionBlock(
                 width,
@@ -741,6 +755,7 @@ class MultimodalTransformer(Transformer):
                 act_layer=act_layer,
                 norm_layer=norm_layer,
                 is_cross_attention=True,
+                need_weights=need_attn_weights
             )
             for _ in range(layers)
         ])
@@ -780,15 +795,27 @@ class MultimodalTransformer(Transformer):
         text_embs = text_embs.permute(1, 0, 2)  # NLD -> LNDsq
         image_embs = image_embs.permute(1, 0, 2)  # NLD -> LND
         seq_len = text_embs.shape[0]
+        if self.need_attn_weights:
+            all_attn_scores = []
 
         for resblock, cross_attn in zip(self.resblocks, self.cross_attn):
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 # TODO: handle kwargs https://github.com/pytorch/pytorch/issues/79887#issuecomment-1161758372
                 text_embs = checkpoint(resblock, text_embs, None, None, self.attn_mask[:seq_len, :seq_len])
-                text_embs = checkpoint(cross_attn, text_embs, image_embs, image_embs, None)
+                cross_attn_output = checkpoint(cross_attn, text_embs, image_embs, image_embs, None)
+                if self.need_attn_weights:
+                    text_embs, cross_attn_scores = cross_attn_output
+                else:
+                    text_embs = cross_attn_output
             else:
                 text_embs = resblock(text_embs, attn_mask=self.attn_mask[:seq_len, :seq_len])
-                text_embs = cross_attn(text_embs, k_x=image_embs, v_x=image_embs)
+                cross_attn_output = cross_attn(text_embs, k_x=image_embs, v_x=image_embs)
+                if self.need_attn_weights:
+                    text_embs, cross_attn_scores = cross_attn_output
+                else:
+                    text_embs = cross_attn_output
+            if self.need_attn_weights:
+                all_attn_scores.append(cross_attn_scores)
 
         x = text_embs.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x)
@@ -796,6 +823,8 @@ class MultimodalTransformer(Transformer):
         if self.text_projection is not None:
             x = x @ self.text_projection
 
+        if self.need_attn_weights:
+            return x, all_attn_scores
         return x
 
     @torch.jit.ignore

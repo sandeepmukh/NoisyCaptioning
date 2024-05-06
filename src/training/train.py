@@ -834,8 +834,6 @@ def evaluate(model, data, epoch, args, tb_writer=None, tokenizer=None):
 
 
 def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
-    print("This function is actually entered")
-    print("How much data is passed in?", len(data))
     device = torch.device(args.device)
     autocast = get_autocast(args.precision)
     input_dtype = get_input_dtype(args.precision)
@@ -868,14 +866,18 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         all_predictions, all_per_position_losses = [], []
         all_per_token_losses = {}
         token_label_counts = {}
+        label_attn_regions = []
+        pred_attn_regions = []
+
         with torch.no_grad():
-            for i, (img, text) in enumerate(data):
+            for img, text in data:
                 img = img.to(device=device, dtype=input_dtype, non_blocking=True).unsqueeze(0)
                 text = text.to(device=device, non_blocking=True).unsqueeze(0)
                 with autocast():
                     model_out = model(img, text)
                     image_features = model_out["image_features"]
                     text_features = model_out["text_features"]
+                    attn_scores = model_out.get("attention_scores", None)
                     
                     logit_scale = model_out["logit_scale"]
                     logit_scale = logit_scale.mean()
@@ -886,7 +888,8 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                     all_text_features.append(text_features.cpu().tolist()[0])
                     all_logits.append(model_out["logits"].cpu().tolist()[0])
                     all_logit_scales.append(logit_scale.item())
-                    all_labels.append(" ".join([tokenizer.decode([token.item()]) for token in model_out["labels"][0]]))
+                    decoded_label_tokens = [tokenizer.decode([token.item()]) for token in model_out["labels"][0]]
+                    all_labels.append(" ".join(decoded_label_tokens))
                     all_logits_per_image.append(logits_per_image.cpu().tolist()[0])
                     all_logits_per_text.append(logits_per_text.cpu().tolist()[0])
 
@@ -897,8 +900,15 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
 
                     logits = model_out["logits"]
                     label_pred = F.softmax(logits, dim = -1).argmax(dim = -1)
-                    label_pred = " ".join([tokenizer.decode([token.item()]) for token in label_pred[0]])
+                    decoded_pred_tokens = [tokenizer.decode([token.item()]) for token in label_pred[0]]
+                    label_pred = " ".join(decoded_pred_tokens)
                     all_predictions.append(label_pred)
+
+                    if attn_scores is not None:
+                        label_attn = process_attention_scores(attn_scores, decoded_label_tokens, img)
+                        pred_attn = process_attention_scores(attn_scores, decoded_pred_tokens, img)
+                        label_attn_regions.append(label_attn)
+                        pred_attn_regions.append(pred_attn)
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -915,18 +925,21 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                 if gen_loss is not None:
                     all_gen_loss.append((gen_loss * batch_size).item())
         
-        sub_metrics["all_image_features"] = all_image_features
-        sub_metrics["all_text_features"] = all_text_features
         metrics["all_loss"] = all_loss
         metrics["all_gen_loss"] = all_gen_loss
         metrics["all_labels"] = all_labels
-        metrics["all_logits"] = all_logits
-        metrics["all_logit_scales"] = all_logit_scales
-        sub_metrics["all_logits_per_image"] = all_logits_per_image
-        sub_metrics["all_logits_per_text"] = all_logits_per_text
         metrics["all_predictions"] = all_predictions
         metrics["all_per_position_losses"] = all_per_position_losses
         metrics["all_per_token_losses"] = all_per_token_losses
+        metrics["all_label_attentions"] = label_attn_regions
+        metrics["all_pred_attentions"] = pred_attn_regions
+        
+        sub_metrics["all_image_features"] = all_image_features
+        sub_metrics["all_text_features"] = all_text_features
+        sub_metrics["all_logits"] = all_logits
+        sub_metrics["all_logit_scales"] = all_logit_scales
+        sub_metrics["all_logits_per_image"] = all_logits_per_image
+        sub_metrics["all_logits_per_text"] = all_logits_per_text
         sub_metrics["token_label_counts"] = token_label_counts
 
         with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_metrics.json"), "w") as f:
@@ -938,8 +951,21 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         print("Done with checkpoint", saved_epoch)
     
     print("DONE WITH EVALUATION YIPPEEEEE")
-    
-    # return metrics
+
+
+def process_attention_scores(scores, tokens, image):
+    scores = scores.squeeze(0)
+    height, width = image.shape[-2], image.shape[-1]
+    grid_length = int(np.sqrt(attn_scores.shape[-1]))
+    token_coords = []
+    for i in range(len(tokens)):
+        token_attn = scores[i]
+        max_idx = token_attn.argmax().item()
+        x, y = max_idx % grid_length, max_idx // grid_length
+        x_pixel = int((x / grid_length) * width)
+        y_pixel = int((y / grid_length) * height)
+        token_coords.append((x_pixel, y_pixel))
+    return token_coords
 
 
 def get_clip_metrics(image_features, text_features, logit_scale):

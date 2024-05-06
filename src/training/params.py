@@ -249,6 +249,11 @@ def parse_args(args):
         help="Name of the vision backbone to use.",
     )
     parser.add_argument(
+        "--with-attention-scores",
+        default=False,
+        action="store_true"
+    )
+    parser.add_argument(
         "--pretrained",
         default='',
         type=str,

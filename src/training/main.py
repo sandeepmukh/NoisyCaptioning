@@ -273,6 +273,7 @@ def main(args):
         aug_cfg=args.aug_cfg,
         pretrained_image=args.pretrained_image,
         output_dict=True,
+        with_attn_scores=args.with_attention_scores,
         **model_kwargs,
     )
     if args.eval:
@@ -288,6 +289,7 @@ def main(args):
             device=device,
             precision=args.precision,
             output_dict=True,
+            with_attn_scores=args.with_attention_scores
         )
 
     if args.use_bnb_linear is not None:

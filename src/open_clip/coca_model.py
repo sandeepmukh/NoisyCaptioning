@@ -55,6 +55,7 @@ def _build_text_decoder_tower(
         multimodal_cfg,
         quick_gelu: bool = False,
         cast_dtype: Optional[torch.dtype] = None,
+        need_attn_weights: bool = False
 ):
     multimodal_cfg = MultimodalCfg(**multimodal_cfg) if isinstance(multimodal_cfg, dict) else multimodal_cfg
     act_layer = QuickGELU if quick_gelu else nn.GELU
@@ -71,6 +72,7 @@ def _build_text_decoder_tower(
         output_dim=embed_dim,
         act_layer=act_layer,
         norm_layer=norm_layer,
+        need_attn_weights=need_attn_weights
     )
 
     return decoder
@@ -86,6 +88,7 @@ class CoCa(nn.Module):
             quick_gelu: bool = False,
             cast_dtype: Optional[torch.dtype] = None,
             pad_id: int = 0,
+            need_attn_weights: bool = False
     ):
         super().__init__()
         multimodal_cfg = MultimodalCfg(**multimodal_cfg) if isinstance(multimodal_cfg, dict) else multimodal_cfg
@@ -117,11 +120,12 @@ class CoCa(nn.Module):
             multimodal_cfg=multimodal_cfg,
             quick_gelu=quick_gelu,
             cast_dtype=cast_dtype,
+            need_attn_weights=need_attn_weights
         )
 
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
         self.pad_id = pad_id
-
+        self.need_attn_weights = need_attn_weights
         self.context_length = multimodal_cfg.context_length
 
     @torch.jit.ignore
@@ -177,14 +181,22 @@ class CoCa(nn.Module):
             image_embs = image_embs * dmix_lam + image_embs[dmix_permutation] * (1 - dmix_lam)
             
 
-        logits = self.text_decoder(image_embs, token_embs)
-        return {
+        decoder_output = self.text_decoder(image_embs, token_embs)
+        if self.need_attn_weights:
+            logits, cross_attn_scores = decoder_output
+        else:
+            logits = decoder_output
+        
+        ret_dict = {
             "image_features": image_latent,
             "text_features": text_latent,
             "logits": logits,
             "labels": labels,
             "logit_scale": self.logit_scale.exp()
         }
+        if self.need_attn_weights:
+            ret_dict["attention_scores"] = cross_attn_scores
+        return ret_dict
 
     def generate(
         self,
