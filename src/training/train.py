@@ -904,7 +904,7 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if attn_scores is not None:
-                        pred_attn = process_attention_scores(attn_scores, decoded_pred_tokens, img)
+                        pred_attn = process_attention_scores(torch.tensor(attn_scores), decoded_pred_tokens, img)
                         pred_attn_regions.append(pred_attn)
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
@@ -952,7 +952,8 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
 def process_attention_scores(scores, tokens, image):
     scores = scores.squeeze(0)
     height, width = image.shape[-2], image.shape[-1]
-    grid_length = int(np.sqrt(attn_scores.shape[-1]))
+    print("img specs", height, width)
+    grid_length = int(np.sqrt(scores.shape[-1]))
     token_coords = []
     for i in range(len(tokens)):
         token_attn = scores[i]
