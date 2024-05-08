@@ -453,18 +453,18 @@ def main(args):
             else:
                 break
     if args.eval_save_samples_dir:
-        data_subset_save = []
-        data_save = get_data(args, (None, None), epoch=start_epoch, tokenizer=tokenizer)
+        data_subset_original = []
+        data_original = get_data(args, (None, None), epoch=start_epoch, tokenizer=tokenizer)
         data_count = 0
-        for i, (img, text) in enumerate(data_save["val"].dataloader):
+        for i, (img, text) in enumerate(data_original["val"].dataloader):
             if data_count < args.eval_samples:
                 if i % 100 == 0:
-                    data_subset_save.extend(list(zip([image for image in img], [caption for caption in text])))
-                    data_count = len(data_subset_save)
+                    data_subset_original.extend(list(zip([image for image in img], [caption for caption in text])))
+                    data_count = len(data_subset_original)
                 else:
                     break
-        del data_save
-        for i, (img, text) in enumerate(data_subset_save):
+        del data_original
+        for i, (img, text) in enumerate(data_subset_original):
             if isinstance(img, torch.Tensor):
                 img = TF.to_pil_image(img)
             elif isinstance(img, bytes):
@@ -480,7 +480,6 @@ def main(args):
             cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
             with open(cap_path, "w") as f:
                 f.write(caption)
-        del data_subset_save
 
     if args.dividemix:
         ts = args.train_num_samples
@@ -568,7 +567,7 @@ def main(args):
         print("Right before entering evaluation function")
         print("Checkpoint files:", checkpoint_files)
         print("Data subset:", len(data_subset))
-        evaluate_subset(model, checkpoint_files, data_subset, args, tokenizer=tokenizer)
+        evaluate_subset(model, checkpoint_files, data_subset, data_subset_original, args, tokenizer=tokenizer)
         return
     
     if "train" not in data:

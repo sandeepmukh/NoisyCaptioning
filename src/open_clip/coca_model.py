@@ -195,7 +195,7 @@ class CoCa(nn.Module):
             "logit_scale": self.logit_scale.exp()
         }
         if self.need_attn_weights:
-            ret_dict["attention_scores"] = cross_attn_scores[0]
+            ret_dict["attention_scores"] = cross_attn_scores  # from all 12 layers, shape (12, 75, 255)
         return ret_dict
 
     def generate(

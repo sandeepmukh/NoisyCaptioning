@@ -5,8 +5,11 @@ import os
 import time
 
 import numpy as np
+import matplotlib.pyplot as plt
+import cv2
 import torch
 import torch.nn.functional as F
+from torchvision import transforms
 from sklearn.mixture import GaussianMixture
 
 try:
@@ -833,7 +836,7 @@ def evaluate(model, data, epoch, args, tb_writer=None, tokenizer=None):
     return metrics
 
 
-def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
+def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
     device = torch.device(args.device)
     autocast = get_autocast(args.precision)
     input_dtype = get_input_dtype(args.precision)
@@ -904,14 +907,7 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if attn_scores is not None:
-                        # pred_attn = process_attention_scores(torch.tensor(attn_scores), decoded_pred_tokens, img)
-                        # pred_attn_regions.append(pred_attn)
-                        print("Example", i)
-                        print("Caption words")
-                        # print("First few attention regions")
-                        # print(pred_attn[:10])
-                        print(attn_scores)
-                        print("\n\n")
+                        process_attention_scores(torch.tensor(attn_scores), decoded_pred_tokens, og_data[i][0], i)
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -955,20 +951,40 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
     print("DONE WITH EVALUATION YIPPEEEEE")
 
 
-def process_attention_scores(scores, tokens, image):
-    scores = scores.squeeze(0)
-    height, width = image.shape[-2], image.shape[-1]
-    print("img specs", height, width)
-    grid_length = int(np.sqrt(scores.shape[-1]))
-    token_coords = []
-    for i in range(len(tokens)):
-        token_attn = scores[i]
-        max_idx = token_attn.argmax().item()
-        x, y = max_idx % grid_length, max_idx // grid_length
-        x_pixel = int((x / grid_length) * width)
-        y_pixel = int((y / grid_length) * height)
-        token_coords.append((x_pixel, y_pixel))
-    return token_coords
+def process_attention_scores(scores, tokens, og_img, og_idx, get_mask = False):
+    residual_attn = torch.eye(scores.size(1))
+    attn = scores + residual_attn
+    attn = attn / attn.sum(dim = -1).unsqueeze(-1)  # (12, 75, 255)
+
+    joint_attn = torch.zeros(attn.size())
+    joint_attn[0] = attn[0]
+    for i in range(1, attn.size(0)):
+        joint_attn[i] = torch.matmul(attn[i], joint_attn[i - 1])  # (12, 75, 255)
+    
+    grid_length = int(np.sqrt(attn.size(-1)))  # 15
+    for layer in [0, -1]:
+        v = joint_attn[layer]  # (75, 255)        
+        for i, token in enumerate(tokens):
+            if token != "<end_of_text>":
+                mask = v[i, 1:].reshape(grid_length, grid_length).detach().numpy()  # 15, 15)
+                mask = cv2.resize(mask / mask.max(), og_img.size)
+                if get_mask:
+                    visual = mask  # (og_size, og_size)
+                else:
+                    visual = mask[..., np.newaxis]
+                    visual = (visual * og_img).astype("uint8")  # (og_size, og_size, 3)
+                Image.fromarray(visual).save(f"attn_{og_idx}_layer_{layer}_token_{i}.png")
+    return visual
+
+
+def save_attention_map(image, attention_map, file_name):
+    fig, (ax1, ax2) = plt.subplots(ncols = 2)
+    ax1.set_title("Original Image")
+    ax2.set_title("Attention Map [Last Layer]")
+    ax1.imshow(image)
+    ax2.imshow(attention_map)
+    plt.savefig(file_name)
+    plt.close(fig)
 
 
 def get_clip_metrics(image_features, text_features, logit_scale):
