@@ -869,7 +869,7 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         pred_attn_regions = []
 
         with torch.no_grad():
-            for img, text in data:
+            for i, (img, text) in enumerate(data):
                 img = img.to(device=device, dtype=input_dtype, non_blocking=True).unsqueeze(0)
                 text = text.to(device=device, non_blocking=True).unsqueeze(0)
                 with autocast():
@@ -904,8 +904,14 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if attn_scores is not None:
-                        pred_attn = process_attention_scores(torch.tensor(attn_scores), decoded_pred_tokens, img)
-                        pred_attn_regions.append(pred_attn)
+                        # pred_attn = process_attention_scores(torch.tensor(attn_scores), decoded_pred_tokens, img)
+                        # pred_attn_regions.append(pred_attn)
+                        print("Example", i)
+                        print("Caption words")
+                        # print("First few attention regions")
+                        # print(pred_attn[:10])
+                        print(attn_scores)
+                        print("\n\n")
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -938,12 +944,12 @@ def evaluate_subset(model, checkpoints, data, args, tokenizer=None):
         sub_metrics["all_logits_per_text"] = all_logits_per_text
         sub_metrics["token_label_counts"] = token_label_counts
 
-        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_metrics.json"), "w") as f:
-            f.write(json.dumps(metrics))
-            f.write("\n")
-        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_submetrics.json"), "w") as f:
-            f.write(json.dumps(sub_metrics))
-            f.write("\n")
+        #with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_metrics.json"), "w") as f:
+        #    f.write(json.dumps(metrics))
+        #    f.write("\n")
+        #with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_submetrics.json"), "w") as f:
+        #    f.write(json.dumps(sub_metrics))
+        #    f.write("\n")
         print("Done with checkpoint", saved_epoch)
     
     print("DONE WITH EVALUATION YIPPEEEEE")
