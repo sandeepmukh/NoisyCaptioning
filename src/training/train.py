@@ -974,7 +974,7 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, get_mask = Fa
         v = joint_attn[layer]  # (255, 255)        
         for i, token in enumerate(tokens):  # only goes up till 75
             if token != "<end_of_text>":
-                mask = v[i, :grid_length**2].reshape(grid_length, grid_length).detach().cpu().numpy()  # (15, 15)
+                mask = v[i, 1:grid_length**2+1].reshape(grid_length, grid_length).detach().cpu().numpy()  # (15, 15)
                 print("mask", mask.shape)
                 mask = cv2.resize(mask / mask.max(), og_img.size)
                 if get_mask:
@@ -983,6 +983,8 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, get_mask = Fa
                     visual = mask[..., np.newaxis]
                     visual = (visual * og_img).astype("uint8")  # (og_size, og_size, 3)
                 Image.fromarray(visual).save(os.path.join(args.eval_attention_dir, f"attn_{og_idx}_layer_{layer if layer != -1 else '11'}_token_{i}.png"))
+    with open(os.path.join(args.eval_attention_dir, f"caption_{og_idx}.txt"), "w") as f:
+        f.write("\n".join([f"{i}. {token}" for i, token in enumerate(tokens)]))
     return visual
 
 
