@@ -452,7 +452,7 @@ def main(args):
                     data_count = len(data_subset)
             else:
                 break
-    if args.eval_save_samples_dir:
+    if args.eval_save_samples_dir or args.eval:
         data_subset_original = []
         data_original = get_data(args, (None, None), epoch=start_epoch, tokenizer=tokenizer)
         data_count = 0
@@ -464,22 +464,23 @@ def main(args):
                 else:
                     break
         del data_original
-        for i, (img, text) in enumerate(data_subset_original):
-            if isinstance(img, torch.Tensor):
-                img = TF.to_pil_image(img)
-            elif isinstance(img, bytes):
-                img = Image.open(io.BytesIO(img))
-            img_path = os.path.join(args.eval_save_samples_dir, f"img_{i}.jpg")
-            img.save(img_path)
-            if isinstance(text, torch.Tensor):
-                caption = tokenizer.decode(text.tolist())
-            elif isinstance(text, str):
-                caption = text
-            else:
-                raise ValueError("Weird text type:", type(text))
-            cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
-            with open(cap_path, "w") as f:
-                f.write(caption)
+        if args.eval_save_samples_dir:
+            for i, (img, text) in enumerate(data_subset_original):
+                if isinstance(img, torch.Tensor):
+                    img = TF.to_pil_image(img)
+                elif isinstance(img, bytes):
+                    img = Image.open(io.BytesIO(img))
+                img_path = os.path.join(args.eval_save_samples_dir, f"img_{i}.jpg")
+                img.save(img_path)
+                if isinstance(text, torch.Tensor):
+                    caption = tokenizer.decode(text.tolist())
+                elif isinstance(text, str):
+                    caption = text
+                else:
+                    raise ValueError("Weird text type:", type(text))
+                cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
+                with open(cap_path, "w") as f:
+                    f.write(caption)
 
     if args.dividemix:
         ts = args.train_num_samples
@@ -567,6 +568,7 @@ def main(args):
         print("Right before entering evaluation function")
         print("Checkpoint files:", checkpoint_files)
         print("Data subset:", len(data_subset))
+        print("EXISTS???", len(data_subset_original))
         evaluate_subset(model, checkpoint_files, data_subset, data_subset_original, args, tokenizer=tokenizer)
         return
     

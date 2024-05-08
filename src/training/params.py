@@ -73,6 +73,11 @@ def parse_args(args):
         help="How often we pull checkpoint file"
     )
     parser.add_argument(
+        "--eval-attention-dir",
+        type=str,
+        help="Location to save attention maps"
+    )
+    parser.add_argument(
         "--train-data",
         type=str,
         default=None,

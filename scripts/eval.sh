@@ -41,5 +41,6 @@ python3 src/training/main.py \
 	--eval-checkpoint-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/checkpoints/elr" \
 	--eval-checkpoint-start 100 \
 	--eval-checkpoint-end 100 \
-	--eval-checkpoint-interval 10
+	--eval-checkpoint-interval 10 \
+	--eval-attention-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/attention/elr"
 
