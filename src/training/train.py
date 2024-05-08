@@ -968,13 +968,14 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, get_mask = Fa
         joint_attn[i] = torch.matmul(attn[i], joint_attn[i - 1])
     print("joint attn", joint_attn.shape)
 
-    grid_length = int(np.sqrt(attn.size(-1)))  # 15
+    grid_length = int(round(np.sqrt(attn.size(-1))))  # 16
     print("grid length", grid_length)
     for layer in [-1]:
         v = joint_attn[layer]  # (255, 255)        
+        v = F.pad(v, (0, 1, 0, 1), "constant", 0)  # (256, 256)
         for i, token in enumerate(tokens):  # only goes up till 75
             if token != "<end_of_text>":
-                mask = v[i, 1:grid_length**2+1].reshape(grid_length, grid_length).detach().cpu().numpy()  # (15, 15)
+                mask = v[i, :].reshape(grid_length, grid_length).detach().cpu().numpy()  # (16, 16)
                 print("mask", mask.shape)
                 mask = cv2.resize(mask / mask.max(), og_img.size)
                 if get_mask:
