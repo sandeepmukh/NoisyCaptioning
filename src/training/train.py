@@ -952,26 +952,26 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
     print("DONE WITH EVALUATION YIPPEEEEE")
 
 
-def process_attention_scores(scores, tokens, og_img, og_idx, args, get_mask = False):
-    scores = scores.squeeze()  # remove second batch dim
-    scores = F.pad(scores, (0, 0, 0, scores.shape[-1] - scores.shape[-2]), "constant", 0)  # (255, 255)
+def process_attention_scores(scores, tokens, og_img, og_idx, args, get_mask = False, average = False):
+    scores = scores.squeeze()  # (12, 1, 75, 255) => (12, 75, 255)
+    # scores = F.pad(scores, (0, 0, 0, scores.shape[-1] - scores.shape[-2]), "constant", 0)  # (255, 255)
     print("scores", scores.shape)
-    residual_attn = torch.eye(scores.shape[-1]).to(torch.device("cuda"))  # (255, 255) but lower rows are for "empty" tokens
-    attn = scores + residual_attn
-    attn = attn / attn.sum(dim = -1).unsqueeze(-1)  # (12, 255, 255)
-    print("attn", attn.shape)
+    # residual_attn = torch.eye(scores.shape[-1]).to(torch.device("cuda"))  # (255, 255) but lower rows are for "empty" tokens
+    # attn = scores + residual_attn
+    # attn = attn / attn.sum(dim = -1).unsqueeze(-1)  # (12, 255, 255)
+    # print("attn", attn.shape)
 
-    joint_attn = torch.zeros(attn.size()).to(torch.device("cuda"))
-    joint_attn[0] = attn[0]  # (255, 255)
-    for i in range(1, attn.size(0)):
-        joint_attn[i] = torch.matmul(attn[i], joint_attn[i - 1])
-    print("joint attn", joint_attn.shape)
+    # joint_attn = torch.zeros(attn.size()).to(torch.device("cuda"))
+    # joint_attn[0] = attn[0]  # (255, 255)
+    # for i in range(1, attn.size(0)):
+    #     joint_attn[i] = torch.matmul(attn[i], joint_attn[i - 1])
+    # print("joint attn", joint_attn.shape)
 
-    grid_length = int(round(np.sqrt(attn.size(-1))))  # 16
+    grid_length = int(np.sqrt(attn.size(-1)))  # 15
     print("grid length", grid_length)
-    for layer in [-1]:
-        v = joint_attn[layer]  # (255, 255)        
-        v = F.pad(v, (0, 1, 0, 1), "constant", 0)  # (256, 256)
+    for layer in [0, -1]:
+        # v = joint_attn[layer]  # (255, 255)
+        # v = F.pad(v, (0, 1, 0, 1), "constant", 0)  # (256, 256)
         for i, token in enumerate(tokens):  # only goes up till 75
             if token != "<end_of_text>":
                 mask = v[i, :].reshape(grid_length, grid_length).detach().cpu().numpy()  # (16, 16)
@@ -982,8 +982,8 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, get_mask = Fa
                 else:
                     visual = mask[..., np.newaxis]
                     visual = (visual * og_img).astype("uint8")  # (og_size, og_size, 3)
-                Image.fromarray(visual).save(os.path.join(args.eval_attention_dir, f"attn_{og_idx}_layer_{layer if layer != -1 else '11'}_token_{i}.png"))
-    with open(os.path.join(args.eval_attention_dir, f"caption_{og_idx}.txt"), "w") as f:
+                Image.fromarray(visual).save(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"layer_{layer if layer != -1 else '11'}_token_{i}.png"))
+    with open(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"caption.txt"), "w") as f:
         f.write("\n".join([f"{i}. {token}" for i, token in enumerate(tokens)]))
     return visual
 
