@@ -911,7 +911,7 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if attn_scores is not None:
-                        process_attention_scores(torch.stack(attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = True, average_over_tokens = False)
+                        process_attention_scores(torch.stack(attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -972,7 +972,7 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_
         else:
             process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
     else:
-        for layer in [0, -1]:  # a slice of (75, 255)
+        for layer in range(scores.size(0)):  # a slice of (75, 255)
             layer_attn = scores[layer]
             if average_over_tokens:
                 attn = layer_attn.mean(dim = 0)
