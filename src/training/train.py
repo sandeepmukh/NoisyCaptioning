@@ -911,8 +911,7 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if attn_scores is not None:
-                        process_attention_scores(torch.stack(attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args)
-                        return
+                        process_attention_scores(torch.stack(attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = True, average_over_tokens = False)
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -969,22 +968,22 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_
         layer_attn = scores.mean(dim = 0)
         if average_over_tokens:
             attn = layer_attn.mean(dim = 0)
-            process_token_attention_scores(attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, None)
+            process_token_attention_scores(attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
         else:
-            process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, None)
+            process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
     else:
         for layer in [0, -1]:  # a slice of (75, 255)
             layer_attn = scores[layer]
             if average_over_tokens:
                 attn = layer_attn.mean(dim = 0)
-                process_token_attention_scores(layer_attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer)
+                process_token_attention_scores(layer_attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args)
             else:
-                process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer)
+                process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args)
     with open(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"caption.txt"), "w") as f:
         f.write("\n".join([f"{i}. {token}" for i, token in enumerate(tokens)]))
 
 
-def process_token_attention_scores(attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer):
+def process_token_attention_scores(attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args):
     if tokens is not None:
         for i, token in enumerate(tokens):  # for each of 75 tokens
             if token != "<end_of_text>":
