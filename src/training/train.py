@@ -912,6 +912,7 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
 
                     if attn_scores is not None:
                         process_attention_scores(torch.stack(attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
+                        return
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
