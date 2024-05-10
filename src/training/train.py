@@ -964,13 +964,33 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_
     patch_size = 224 / num_patches_side
     scale_factor = og_img.size[0] / 224  # 256 / 224
     print("original image", og_img.size)
-    for layer in [0, -1]:  # a slice of (75, 255)
-        layer_attn = scores[layer]
+
+    if average_over_layers:
+        layer_attn = scores.mean(dim = 0)
+        if average_over_tokens:
+            attn = layer_attn.mean(dim = 0)
+            process_token_attention_scores(attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, None)
+        else:
+            process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, None)
+    else:
+        for layer in [0, -1]:  # a slice of (75, 255)
+            layer_attn = scores[layer]
+            if average_over_tokens:
+                attn = layer_attn.mean(dim = 0)
+                process_token_attention_scores(layer_attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer)
+            else:
+                process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer)
+    with open(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"caption.txt"), "w") as f:
+        f.write("\n".join([f"{i}. {token}" for i, token in enumerate(tokens)]))
+
+
+def process_token_attention_scores(attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer):
+    if tokens is not None:
         for i, token in enumerate(tokens):  # for each of 75 tokens
             if token != "<end_of_text>":
                 og_img_array = np.array(og_img)
-                token_attn = layer_attn[i] / layer_attn[i].max()
-                for j in range(scores.size(-1)):  # for each of 255 patches
+                token_attn = attn[i] / attn[i].max()
+                for j in range(attn.size(-1)):  # for each of 255 patches
                     row = j // num_patches_side
                     col = j % num_patches_side
                     intensity = token_attn[j].item()
@@ -979,9 +999,28 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_
                     x_end = int((col + 1) * patch_size * scale_factor)
                     y_end = int((row + 1) * patch_size * scale_factor)
                     og_img_array[y:y_end, x:x_end] = (og_img_array[y:y_end, x:x_end] * intensity).astype(np.uint8)
-                Image.fromarray(og_img_array).save(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"layer_{layer if layer != -1 else '11'}_token_{i}.png"))
-    with open(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"caption.txt"), "w") as f:
-        f.write("\n".join([f"{i}. {token}" for i, token in enumerate(tokens)]))
+                if layer:
+                    img_name = f"layer_{layer if layer != -1 else '11'}_token_{i}.png"
+                else:
+                    img_name = f"token_{i}.png"
+                Image.fromarray(og_img_array).save(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", img_name))
+    else:
+        og_img_array = np.array(og_img)
+        attn = attn / attn.max()
+        for j in range(attn.size(-1)):  # for each of 255 patches
+            row = j // num_patches_side
+            col = j % num_patches_side
+            intensity = token_attn[j].item()
+            x = int(col * patch_size * scale_factor)
+            y = int(row * patch_size * scale_factor)
+            x_end = int((col + 1) * patch_size * scale_factor)
+            y_end = int((row + 1) * patch_size * scale_factor)
+            og_img_array[y:y_end, x:x_end] = (og_img_array[y:y_end, x:x_end] * intensity).astype(np.uint8)
+        if layer:
+            img_name = f"layer_{layer if layer != -1 else '11'}.png"
+        else:
+            img_name = f"attention.png"
+        Image.fromarray(og_img_array).save(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", img_name))
 
 
 def get_clip_metrics(image_features, text_features, logit_scale):
