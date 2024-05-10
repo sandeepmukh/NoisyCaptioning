@@ -964,13 +964,13 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_
     patch_size = 224 / num_patches_side
     scale_factor = og_img.size[0] / 224  # 256 / 224
     print("original image", og_img.size)
-    og_img_array = np.array(og_img)
     for layer in [0, -1]:  # a slice of (75, 255)
         layer_attn = scores[layer]
         for i, token in enumerate(tokens):  # for each of 75 tokens
             if token != "<end_of_text>":
                 token_attn = layer_attn[i] / layer_attn[i].max()
                 for j in range(scores.size(-1)):  # for each of 255 patches
+                    og_img_array = np.array(og_img)
                     row = j // num_patches_side
                     col = j % num_patches_side
                     intensity = token_attn[j].item()
