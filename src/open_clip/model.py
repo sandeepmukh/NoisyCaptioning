@@ -166,7 +166,8 @@ def _build_vision_tower(
             act_layer=act_layer,
             norm_layer=norm_layer,
         )
-
+    print("VISION CONFIGGGGGGGGGGG")
+    print(vision_cfg)
     return visual
 
 
