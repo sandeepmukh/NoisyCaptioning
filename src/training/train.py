@@ -998,6 +998,7 @@ def process_token_attention_scores(attn, tokens, og_img, og_idx, num_patches_sid
                     x_end = int((col + 1) * patch_size * scale_factor)
                     y_end = int((row + 1) * patch_size * scale_factor)
                     og_img_array[y:y_end, x:x_end] = (og_img_array[y:y_end, x:x_end] * intensity).astype(np.uint8)
+                blur_patch_borders(og_img_array, num_patches_side, patch_size, scale_factor)
                 if layer:
                     img_name = f"layer_{layer if layer != -1 else '11'}_token_{i}.png"
                 else:
@@ -1015,11 +1016,32 @@ def process_token_attention_scores(attn, tokens, og_img, og_idx, num_patches_sid
             x_end = int((col + 1) * patch_size * scale_factor)
             y_end = int((row + 1) * patch_size * scale_factor)
             og_img_array[y:y_end, x:x_end] = (og_img_array[y:y_end, x:x_end] * intensity).astype(np.uint8)
+            blur_patch_borders(og_img_array, num_patches_side, patch_size, scale_factor)
         if layer:
             img_name = f"layer_{layer if layer != -1 else '11'}.png"
         else:
             img_name = f"attention.png"
         Image.fromarray(og_img_array).save(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", img_name))
+
+
+def blur_patch_borders(img_array, num_patches_side, patch_size, scale_factor):
+    patch_height = patch_width = int(patch_size * scale_factor)
+    for row in range(num_patches_side):
+        for col in range(num_patches_side):
+            x_start = col * patch_width
+            y_start = row * patch_height
+            x_end = (col + 1) * patch_width
+            y_end = (row + 1) * patch_height
+
+            if row > 0:
+                img_array[y_start:(y_start + 1), x_start:x_end] = (img_array[y_start:(y_start + 1), x_start:x_end] + img_array[(y_start - 1):y_start, x_start:x_end]) / 2
+            if row < num_patches_side - 1:
+                img_array[(y_end - 1):y_end, x_start:x_end] = (img_array[(y_end - 1):y_end, x_start:x_end] + img_array[y_end:(y_end + 1), x_start:x_end]) / 2
+
+            if col > 0:
+                img_array[y_start:y_end, x_start:(x_start + 1)] = (img_array[y_start:y_end, x_start:(x_start + 1)] + img_array[y_start:y_end, (x_start - 1):x_start]) / 2
+            if col < num_patches_side - 1:
+                img_array[y_start:y_end, (x_end - 1):x_end] = (img_array[y_start:y_end, (x_end - 1):x_end] + img_array[y_start:y_end, x_end:(x_end + 1)]) / 2
 
 
 def get_clip_metrics(image_features, text_features, logit_scale):
