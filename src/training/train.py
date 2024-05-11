@@ -871,7 +871,7 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
         all_predictions, all_per_position_losses = [], []
         all_per_token_losses = {}
         token_label_counts = {}
-        pred_attn_regions = []
+        all_token_attn_splits = []
 
         with torch.no_grad():
             for i, (img, text) in enumerate(data):
@@ -912,8 +912,11 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if cross_attn_scores is not None:
-                        process_cross_attention_scores(torch.stack(cross_attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
-                        return
+                        # process_cross_attention_scores(torch.stack(cross_attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
+                        # process_self_attention_scores(torch.stack(self_attn_scores, dim = 0), decoded_pred_tokens, i, args, average_over_layers = False)
+                        token_attn_split = compare_image_vs_token_attention(torch.stack(cross_attn_scores, dim = 0), torch.stack(self_attn_scores, dim = 0))
+                        all_token_attn_splits.append(token_attn_split)
+                        # return
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -936,7 +939,7 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
         metrics["all_predictions"] = all_predictions
         metrics["all_per_position_losses"] = all_per_position_losses
         metrics["all_per_token_losses"] = all_per_token_losses
-        metrics["all_pred_attentions"] = pred_attn_regions
+        metrics["all_token_attn_splits"] = all_token_attn_splits
         
         sub_metrics["all_image_features"] = all_image_features
         sub_metrics["all_text_features"] = all_text_features
@@ -955,6 +958,23 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
         print("Done with checkpoint", saved_epoch)
     
     print("DONE WITH EVALUATION YIPPEEEEE")
+
+
+def compare_image_vs_token_attention(cross_scores, self_scores):
+    cross_scores = cross_scores.squeeze()
+    self_scores = self_scores.squeeze()
+    token_attentions = {}
+    # Only first and last layers to look at evolution of attention
+    for layer in [0, cross_scores.size(0) - 1]:
+        img_attn = cross_scores[layer]  # (75, x)
+        token_attn = self_scores[layer]  # (75, x)
+        img_attn = (img_attn / img_attn.sum(dim = -1, keepdim = True)).mean(dim = -1)  # (75)
+        token_attn = (token_attn / token_attn.sum(dim = -1, keepdim = True)).mean(dim = -1)  # (75)
+        total_attn = img_attn + token_attn  # (75)
+        img_attn_ratio = img_attn / total_attn  # (75)
+        token_attn_ratio = token_attn / total_attn  # (75)
+        token_attentions[layer] = (img_attn_ratio, token_attn_ratio)
+    return token_attentions
 
 
 def process_cross_attention_scores(scores, tokens, og_img, og_idx, args, average_over_layers = False, average_over_tokens = False):
@@ -1022,6 +1042,19 @@ def process_token_cross_attention_scores(attn, tokens, og_img, og_idx, num_patch
         else:
             img_name = f"attention.png"
         Image.fromarray(og_img_array).save(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", img_name))
+
+
+def process_self_attention_scores(scores, tokens, og_idx, args, average_over_layers = False):
+    scores = scores.squeeze()  # (12, 1, 75, 75) => (12, 75, 75)
+    print("[TOKEN ATTENT] scores", scores.shape)
+
+    if average_over_layers:
+        layer_attn = scores.mean(dim = 0)  # (75, 75)
+        pass
+    else:
+        for layer in range(scores.size(0)):  # a slice of (75, 75)
+            layer_attn = scores[layer]
+            pass
 
 
 def get_clip_metrics(image_features, text_features, logit_scale):
