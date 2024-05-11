@@ -883,7 +883,8 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
                     model_out = model(img, text)
                     image_features = model_out["image_features"]
                     text_features = model_out["text_features"]
-                    attn_scores = model_out.get("attention_scores", None)
+                    cross_attn_scores = model_out.get("cross_attention_scores", None)
+                    self_attn_scores = model_out.get("self_attention_scores", None)
                     
                     logit_scale = model_out["logit_scale"]
                     logit_scale = logit_scale.mean()
@@ -910,8 +911,9 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
                     label_pred = " ".join(decoded_pred_tokens)
                     all_predictions.append(label_pred)
 
-                    if attn_scores is not None:
-                        process_attention_scores(torch.stack(attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
+                    if cross_attn_scores is not None:
+                        process_cross_attention_scores(torch.stack(cross_attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
+                        return
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -955,7 +957,7 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
     print("DONE WITH EVALUATION YIPPEEEEE")
 
 
-def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_layers = False, average_over_tokens = False):
+def process_cross_attention_scores(scores, tokens, og_img, og_idx, args, average_over_layers = False, average_over_tokens = False):
     scores = scores.squeeze()  # (12, 1, 75, 255) => (12, 75, 255)
     print("scores", scores.shape)
 
@@ -968,22 +970,22 @@ def process_attention_scores(scores, tokens, og_img, og_idx, args, average_over_
         layer_attn = scores.mean(dim = 0)
         if average_over_tokens:
             attn = layer_attn.mean(dim = 0)
-            process_token_attention_scores(attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
+            process_token_cross_attention_scores(attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
         else:
-            process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
+            process_token_cross_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, None, args)
     else:
         for layer in range(scores.size(0)):  # a slice of (75, 255)
             layer_attn = scores[layer]
             if average_over_tokens:
                 attn = layer_attn.mean(dim = 0)
-                process_token_attention_scores(layer_attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args)
+                process_token_cross_attention_scores(layer_attn, None, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args)
             else:
-                process_token_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args)
+                process_token_cross_attention_scores(layer_attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args)
     with open(os.path.join(args.eval_attention_dir, f"sample_{og_idx}", f"caption.txt"), "w") as f:
         f.write("\n".join([f"{i}. {token}" for i, token in enumerate(tokens)]))
 
 
-def process_token_attention_scores(attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args):
+def process_token_cross_attention_scores(attn, tokens, og_img, og_idx, num_patches_side, patch_size, scale_factor, layer, args):
     if tokens is not None:
         for i, token in enumerate(tokens):  # for each of 75 tokens
             if token != "<end_of_text>":

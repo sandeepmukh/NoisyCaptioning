@@ -188,9 +188,10 @@ class CoCa(nn.Module):
 
         decoder_output = self.text_decoder(image_embs, token_embs)
         if self.need_attn_weights:
-            logits, cross_attn_scores = decoder_output
+            logits, cross_attn_scores, self_attn_scores = decoder_output
             print("logits", logits.shape)
             print("cross attn scores", len(cross_attn_scores), cross_attn_scores[0].shape)
+            print("self attn scores", len(self_attn_scores), self_attn_scores[0].shape)
         else:
             logits = decoder_output
         
@@ -203,7 +204,8 @@ class CoCa(nn.Module):
         }
         print("\n\n\n")
         if self.need_attn_weights:
-            ret_dict["attention_scores"] = cross_attn_scores  # from all 12 layers, shape (12, 75, 255)
+            ret_dict["cross_attention_scores"] = cross_attn_scores  # from all 12 layers, shape (12, 75, 255)
+            ret_dict["self_attention_scores"] = self_attn_scores
         return ret_dict
 
     def generate(

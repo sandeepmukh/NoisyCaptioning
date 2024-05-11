@@ -310,6 +310,7 @@ class Transformer(nn.Module):
             ls_init_value: float = None,
             act_layer: Callable = nn.GELU,
             norm_layer: Callable = LayerNorm,
+            need_attn_weights: bool = False,
     ):
         super().__init__()
         self.width = width
@@ -318,7 +319,7 @@ class Transformer(nn.Module):
 
         self.resblocks = nn.ModuleList([
             ResidualAttentionBlock(
-                width, heads, mlp_ratio, ls_init_value=ls_init_value, act_layer=act_layer, norm_layer=norm_layer)
+                width, heads, mlp_ratio, ls_init_value=ls_init_value, act_layer=act_layer, norm_layer=norm_layer, need_weights=need_attn_weights)
             for _ in range(layers)
         ])
 
@@ -743,6 +744,7 @@ class MultimodalTransformer(Transformer):
             ls_init_value=ls_init_value,
             act_layer=act_layer,
             norm_layer=norm_layer,
+            need_attn_weights=need_attn_weights
         )
         self.context_length = context_length
         self.need_attn_weights = need_attn_weights
@@ -796,26 +798,36 @@ class MultimodalTransformer(Transformer):
         image_embs = image_embs.permute(1, 0, 2)  # NLD -> LND
         seq_len = text_embs.shape[0]
         if self.need_attn_weights:
-            all_attn_scores = []
+            all_cross_attn_scores = []
+            all_self_attn_scores = []
 
         for resblock, cross_attn in zip(self.resblocks, self.cross_attn):
             if self.grad_checkpointing and not torch.jit.is_scripting():
                 # TODO: handle kwargs https://github.com/pytorch/pytorch/issues/79887#issuecomment-1161758372
-                text_embs = checkpoint(resblock, text_embs, None, None, self.attn_mask[:seq_len, :seq_len])
+                self_attn_output = checkpoint(resblock, text_embs, None, None, self.attn_mask[:seq_len, :seq_len])
+                if self.need_attn_weights:
+                    text_embs, self_attn_scores = self_attn_output
+                else:
+                    text_embs = self_attn_output
                 cross_attn_output = checkpoint(cross_attn, text_embs, image_embs, image_embs, None)
                 if self.need_attn_weights:
                     text_embs, cross_attn_scores = cross_attn_output
                 else:
                     text_embs = cross_attn_output
             else:
-                text_embs = resblock(text_embs, attn_mask=self.attn_mask[:seq_len, :seq_len])
+                self_attn_output = resblock(text_embs, attn_mask=self.attn_mask[:seq_len, :seq_len])
+                if self.need_attn_weights:
+                    text_embs, self_attn_scores = self_attn_output
+                else:
+                    text_embs = self_attn_output
                 cross_attn_output = cross_attn(text_embs, k_x=image_embs, v_x=image_embs)
                 if self.need_attn_weights:
                     text_embs, cross_attn_scores = cross_attn_output
                 else:
                     text_embs = cross_attn_output
             if self.need_attn_weights:
-                all_attn_scores.append(cross_attn_scores)
+                all_cross_attn_scores.append(cross_attn_scores)
+                all_self_attn_scores.append(self_attn_scores)
 
         x = text_embs.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x)
@@ -824,7 +836,7 @@ class MultimodalTransformer(Transformer):
             x = x @ self.text_projection
 
         if self.need_attn_weights:
-            return x, all_attn_scores
+            return x, all_cross_attn_scores, all_self_attn_scores
         return x
 
     @torch.jit.ignore
