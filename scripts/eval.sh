@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=2
 #SBATCH --wait-all-nodes=1
-#SBATCH --job-name=attention
+#SBATCH --job-name=self_attention
 #SBATCH --output=slurm/%x_%j.out
 #SBATCH --time=02:00:00
 #SBATCH --qos scavenger
