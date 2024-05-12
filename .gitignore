@@ -6,6 +6,7 @@ results/
 analysis/eval_logs/
 analysis/checkpoints/
 analysis/eval_samples/
+analysis/attention/
 slurm/
 
 tests/data/

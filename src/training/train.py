@@ -877,8 +877,8 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
             for i, (img, text) in enumerate(data):
                 img = img.to(device=device, dtype=input_dtype, non_blocking=True).unsqueeze(0)
                 text = text.to(device=device, non_blocking=True).unsqueeze(0)
-                print("input img", img.shape)
-                print("input caption", text.shape)
+                # print("input img", img.shape)
+                # print("input caption", text.shape)
                 with autocast():
                     model_out = model(img, text)
                     image_features = model_out["image_features"]
@@ -912,11 +912,10 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
                     all_predictions.append(label_pred)
 
                     if cross_attn_scores is not None:
-                        # process_cross_attention_scores(torch.stack(cross_attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
+                        process_cross_attention_scores(torch.stack(cross_attn_scores, dim = 0), decoded_pred_tokens, og_data[i][0], i, args, average_over_layers = False, average_over_tokens = False)
                         # process_self_attention_scores(torch.stack(self_attn_scores, dim = 0), decoded_pred_tokens, i, args, average_over_layers = False)
                         token_attn_split = compare_image_vs_token_attention(torch.stack(cross_attn_scores, dim = 0), torch.stack(self_attn_scores, dim = 0))
                         all_token_attn_splits.append(token_attn_split)
-                        # return
 
                     position_losses = F.cross_entropy(logits.transpose(1, 2), model_out["labels"], reduction = "none")[0]
                     all_per_position_losses.append(position_losses.cpu().tolist())
@@ -949,12 +948,12 @@ def evaluate_subset(model, checkpoints, data, og_data, args, tokenizer=None):
         sub_metrics["all_logits_per_text"] = all_logits_per_text
         sub_metrics["token_label_counts"] = token_label_counts
 
-        #with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_metrics.json"), "w") as f:
-        #    f.write(json.dumps(metrics))
-        #    f.write("\n")
-        #with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_submetrics.json"), "w") as f:
-        #    f.write(json.dumps(sub_metrics))
-        #    f.write("\n")
+        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_metrics.json"), "w") as f:
+            f.write(json.dumps(metrics))
+            f.write("\n")
+        with open(os.path.join(args.eval_log_dir, f"checkpoint_{saved_epoch}_submetrics.json"), "w") as f:
+            f.write(json.dumps(sub_metrics))
+            f.write("\n")
         print("Done with checkpoint", saved_epoch)
     
     print("DONE WITH EVALUATION YIPPEEEEE")
@@ -965,15 +964,13 @@ def compare_image_vs_token_attention(cross_scores, self_scores):
     self_scores = self_scores.squeeze()
     token_attentions = {}
     # Only first and last layers to look at evolution of attention
-    for layer in [0, cross_scores.size(0) - 1]:
-        img_attn = cross_scores[layer]  # (75, x)
-        token_attn = self_scores[layer]  # (75, x)
-        img_attn = (img_attn / img_attn.sum(dim = -1, keepdim = True)).mean(dim = -1)  # (75)
-        token_attn = (token_attn / token_attn.sum(dim = -1, keepdim = True)).mean(dim = -1)  # (75)
+    for layer in [0, cross_scores.size(0) - 1]:  # (75, x)
+        img_attn = torch.log(cross_scores[layer].max(dim = 1)[0])
+        token_attn = torch.log(self_scores[layer].max(dim = 1)[0])
         total_attn = img_attn + token_attn  # (75)
-        img_attn_ratio = img_attn / total_attn  # (75)
-        token_attn_ratio = token_attn / total_attn  # (75)
-        token_attentions[layer] = (img_attn_ratio, token_attn_ratio)
+        img_attn_ratio = img_attn / total_attn
+        token_attn_ratio = token_attn / total_attn
+        token_attentions[layer] = (img_attn_ratio.cpu().tolist(), token_attn_ratio.cpu().tolist())
     return token_attentions
 
 

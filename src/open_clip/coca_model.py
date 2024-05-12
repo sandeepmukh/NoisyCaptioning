@@ -164,19 +164,19 @@ class CoCa(nn.Module):
     ):
         if image_latent is None or image_embs is None:
             image_latent, image_embs = self._encode_image(image)
-        print("image latent", image_latent.shape)
-        print("image embeddings", image_embs.shape)
+        # print("image latent", image_latent.shape)
+        # print("image embeddings", image_embs.shape)
 
         if text is None:
             return {"image_features": image_latent, "image_embs": image_embs}
 
         text_latent, token_embs = self._encode_text(text)
-        print("text latent", text_latent.shape)
-        print("text embeddings", token_embs.shape)
+        # print("text latent", text_latent.shape)
+        # print("text embeddings", token_embs.shape)
 
         # TODO: add assertion to avoid bugs?
         labels = text[:, 1:]
-        print("labels", labels.shape)
+        # print("labels", labels.shape)
         if is_training:
             token_embs = token_embs[:, :-1]
             
@@ -189,9 +189,9 @@ class CoCa(nn.Module):
         decoder_output = self.text_decoder(image_embs, token_embs)
         if self.need_attn_weights:
             logits, cross_attn_scores, self_attn_scores = decoder_output
-            print("logits", logits.shape)
-            print("cross attn scores", len(cross_attn_scores), cross_attn_scores[0].shape)
-            print("self attn scores", len(self_attn_scores), self_attn_scores[0].shape)
+            # print("logits", logits.shape)
+            # print("cross attn scores", len(cross_attn_scores), cross_attn_scores[0].shape)
+            # print("self attn scores", len(self_attn_scores), self_attn_scores[0].shape)
         else:
             logits = decoder_output
         
@@ -202,7 +202,7 @@ class CoCa(nn.Module):
             "labels": labels,
             "logit_scale": self.logit_scale.exp()
         }
-        print("\n\n\n")
+        # print("\n\n\n")
         if self.need_attn_weights:
             ret_dict["cross_attention_scores"] = cross_attn_scores  # from all 12 layers, shape (12, 75, 255)
             ret_dict["self_attention_scores"] = self_attn_scores

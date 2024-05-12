@@ -5,10 +5,10 @@
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=2
 #SBATCH --wait-all-nodes=1
-#SBATCH --job-name=self_attention
+#SBATCH --job-name=selective_eval
 #SBATCH --output=slurm/%x_%j.out
 #SBATCH --time=02:00:00
-#SBATCH --qos scavenger
+#SBATCH --qos high
 
 echo "Activating conda environment..."
 eval "$(/nas/ucb/tutrinh/anaconda3/bin/conda shell.bash hook)"
@@ -33,14 +33,14 @@ python3 src/training/main.py \
 	--val-data="/nas/ucb/tutrinh/cc3m/cc3m_val/{00000..00001}.tar" \
 	--dataset-type webdataset \
 	--model "coca_ViT-B-32" \
-	--name "eval_testing_2" \
+	--name "eval_testing_3" \
 	--with-attention-scores \
 	--eval \
-	--eval-log-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/eval_logs/elr" \
+	--eval-log-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/eval_logs/selective" \
 	--eval-samples 64 \
-	--eval-checkpoint-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/checkpoints/elr" \
-	--eval-checkpoint-start 100 \
+	--eval-checkpoint-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/checkpoints/selective" \
+	--eval-checkpoint-start 10 \
 	--eval-checkpoint-end 100 \
 	--eval-checkpoint-interval 10 \
-	--eval-attention-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/attention/elr"
+	--eval-attention-dir="/nas/ucb/tutrinh/backup/NoisyCaptioning/analysis/attention/selective"
 
