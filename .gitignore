@@ -3,6 +3,7 @@ wandb/
 models/
 features/
 results/
+*slurm*
 
 tests/data/
 *.pt
