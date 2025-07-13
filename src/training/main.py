@@ -7,6 +7,8 @@ import sys
 import random
 from datetime import datetime
 from functools import partial
+import signal, faulthandler
+faulthandler.register(signal.SIGUSR1)
 
 import numpy as np
 import torch
@@ -291,6 +293,7 @@ def main(args):
             output_dict=True,
             with_attn_scores=args.with_attention_scores
         )
+    print("passed 1")
 
     if args.use_bnb_linear is not None:
         print(
@@ -308,11 +311,14 @@ def main(args):
         )
         replace_linear(model, linear_replacement_cls)
         model = model.to(device)
+    print("passed 2")
 
     random_seed(args.seed, args.rank)
+    print("passed 3")
 
     if args.trace:
         model = trace_model(model, batch_size=args.batch_size, device=device)
+    print("passed 4")
 
     if args.lock_image:
         # lock image tower as per LiT - https://arxiv.org/abs/2111.07991
@@ -320,14 +326,17 @@ def main(args):
             unlocked_groups=args.lock_image_unlocked_groups,
             freeze_bn_stats=args.lock_image_freeze_bn_stats,
         )
+    print("passed 5")
     if args.lock_text:
         model.lock_text_tower(
             unlocked_layers=args.lock_text_unlocked_layers,
             freeze_layer_norm=args.lock_text_freeze_layer_norm,
         )
+    print("passed 6")
 
     if args.grad_checkpointing:
         model.set_grad_checkpointing()
+    print("passed 7")
 
     if is_master(args):
         logging.info("Model:")
@@ -339,6 +348,7 @@ def main(args):
                 val = getattr(args, name)
                 logging.info(f"  {name}: {val}")
                 f.write(f"{name}: {val}\n")
+    print("passed 8")
 
     if args.distributed and not args.horovod:
         if args.use_bn_sync:
@@ -355,9 +365,11 @@ def main(args):
             dist_model = torch.nn.parallel.DistributedDataParallel(
                 dist_model, device_ids=[device], **ddp_args
             )
+    print("passed 9")
 
     if args.elr_distill:
         dist_model = AveragedModel(model, multi_avg_fn=get_ema_with_warmup(args))
+    print("passed 10")
 
     # create optimizer and scaler
     optimizer = None
@@ -405,6 +417,7 @@ def main(args):
             hvd.broadcast_optimizer_state(optimizer, root_rank=0)
 
         scaler = GradScaler() if args.precision == "amp" else None
+    print("passed 11")
 
     # optionally resume from a checkpoint
     start_epoch = 0
@@ -432,6 +445,7 @@ def main(args):
             # loading a bare (model only) checkpoint for fine-tune or evaluation
             model.load_state_dict(checkpoint)
             logging.info(f"=> loaded checkpoint '{args.resume}' (epoch {start_epoch})")
+    print("passed 12")
 
     # initialize datasets
     tokenizer = get_tokenizer(args.model)
@@ -452,6 +466,8 @@ def main(args):
                     data_count = len(data_subset)
             else:
                 break
+    print("passed 13")
+
     if args.eval_save_samples_dir or args.eval:
         data_subset_original = []
         data_original = get_data(args, (None, None), epoch=start_epoch, tokenizer=tokenizer)
@@ -481,6 +497,7 @@ def main(args):
                 cap_path = os.path.join(args.eval_save_samples_dir, f"cap_{i}.txt")
                 with open(cap_path, "w") as f:
                     f.write(caption)
+    print("passed 14")
 
     if args.dividemix:
         ts = args.train_num_samples
@@ -492,6 +509,7 @@ def main(args):
             tokenizer=tokenizer,
         )
         args.train_num_samples = ts
+    print("passed 15")
 
     # create scheduler if train
     scheduler = None
@@ -524,6 +542,7 @@ def main(args):
                 f"Unknown scheduler, {args.lr_scheduler}. Available options are: cosine, const, const-cooldown."
             )
             exit(1)
+    print("passed 16")
 
     # determine if this worker should save logs and checkpoints. only do so if it is rank == 0
     args.save_logs = args.logs and args.logs.lower() != "none" and is_master(args)
@@ -531,6 +550,7 @@ def main(args):
     if args.save_logs and args.tensorboard:
         assert tensorboard is not None, "Please install tensorboard."
         writer = tensorboard.SummaryWriter(args.tensorboard_path)
+    print("passed 17")
 
     if args.wandb and is_master(args):
         assert wandb is not None, "Please install wandb."
@@ -552,6 +572,7 @@ def main(args):
             wandb.watch(model, log="all")
         wandb.save(params_file)
         logging.debug("Finished loading wandb.")
+    print("passed 18")
 
     # Pytorch 2.0 adds '_orig_mod.' prefix to keys of state_dict() of compiled models.
     # For compatibility, we save state_dict() of the original model, which shares the
@@ -560,6 +581,7 @@ def main(args):
     if args.torchcompile:
         logging.info("Compiling model...")
         model = torch.compile(original_model)
+    print("passed 19")
 
     if args.eval:
         if args.use_bnb_linear is not None:
@@ -571,7 +593,8 @@ def main(args):
         print("EXISTS???", len(data_subset_original))
         evaluate_subset(model, checkpoint_files, data_subset, data_subset_original, args, tokenizer=tokenizer)
         return
-    
+    print("passed 20")
+
     if "train" not in data:
         # If using int8, convert to inference mode.
         if args.use_bnb_linear is not None:
@@ -581,12 +604,14 @@ def main(args):
         # Evaluate.
         evaluate(model, data, start_epoch, args, tb_writer=writer, tokenizer=tokenizer)
         return
+    print("passed 21")
 
     loss = create_loss(args)
     augmentations = [
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip()
     ]
+    print("passed 22")
 
     for epoch in range(start_epoch, args.epochs):
         if is_master(args):
