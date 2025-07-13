@@ -106,6 +106,7 @@ def init_distributed_device(args):
             device = 'cuda:%d' % args.local_rank
         else:
             device = 'cuda:0'
+        print("HEEHEE HOOHOO AAAHHHHH\nSetting CUDA device to", device)
         torch.cuda.set_device(device)
     else:
         device = 'cpu'

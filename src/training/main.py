@@ -85,6 +85,8 @@ def get_latest_checkpoint(path: str, remote: bool):
 
 
 def main(args):
+    print("CURRENT ARGS:")
+    print(args)
     args = parse_args(args)
     assert args.warmup_epochs < args.epochs, f"Number of warmup epochs {args.warmup_epochs} must be less than number of total epochs {args.epochs}"
 
